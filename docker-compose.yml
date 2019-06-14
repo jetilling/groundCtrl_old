@@ -1,0 +1,46 @@
+version: '3.1'
+services:
+  # Laravel app
+  app:
+    build:
+      context: ./
+      dockerfile: app.dockerfile
+    environment:
+      # for dev only
+      # allows for file changes to be detected
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: 1
+    image: tabzilla_app
+    working_dir: /var/www
+    volumes:
+      #- web_app:/var/www
+      - .:/var/www
+  # nginx proxy server
+  web:
+    build:
+      context: ./
+      dockerfile: web.dockerfile
+    image: tabzilla_web
+    working_dir: /var/www
+    volumes:
+      #- web_app:/var/www
+      - .:/var/www
+    ports:
+      - 8080:80
+  # postgres database
+  postgres:
+    build:
+      context: ./
+      dockerfile: postgres.dockerfile
+    image: tabzilla_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tabzilla
+    volumes:
+      - tabzilla_db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+volumes:
+  tabzilla_db:
+  # web_app:
