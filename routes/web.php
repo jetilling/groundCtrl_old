@@ -10,7 +10,15 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-
 Route::get('/', function () {
-    return view('welcome');
+  return view('landing');
+});
+
+Auth::routes();
+
+Route::prefix('home')->group(function () {
+
+  Route::get('/', 'HomeController@index')->name('home');
+  Route::resource('workspaces', 'WorkspaceController');
+
 });
