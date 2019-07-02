@@ -16,7 +16,11 @@ class CreateTabsTable extends Migration
         Schema::create('tabs', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('url');
+            $table->string('name');
+            $table->unsignedBigInteger('workspace_id');
             $table->timestamps();
+
+            $table->foreign('workspace_id')->references('id')->on('workspaces');
         });
     }
 

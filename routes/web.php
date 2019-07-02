@@ -20,5 +20,6 @@ Route::prefix('home')->group(function () {
 
   Route::get('/', 'HomeController@index')->name('home');
   Route::resource('workspaces', 'WorkspaceController');
+  Route::post('/workspaces/{workspace}/tab', 'WorkspaceTabsController@store');
 
 });

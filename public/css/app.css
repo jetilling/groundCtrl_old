@@ -11731,3 +11731,30 @@ label.panel-block:hover {
   width: 20vw;
 }
 
+.workspace-icon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid;
+  border-radius: 50%;
+}
+
+.set-box-heights {
+  min-height: 115px;
+  max-height: 115px;
+}
+
+.light-background {
+  background: whitesmoke;
+  color: #363636;
+  min-height: calc(100vh - 3.25rem);
+  padding: 20px;
+}
+
+.display {
+  display: inline-block;
+}
+
+.no-display {
+  display: none;
+}
+

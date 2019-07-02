@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\WokrspaceTabs;
+use App\Tab;
+use App\Workspace;
 use Illuminate\Http\Request;
 
 class WorkspaceTabsController extends Controller
@@ -33,9 +34,16 @@ class WorkspaceTabsController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(Workspace $workspace)
     {
-        //
+        $attributes = request()->validate([
+            'url' => 'required',
+            'name' => 'required'
+        ]);
+
+        $workspace->addTab($attributes);
+
+        return back();
     }
 
     /**
@@ -67,9 +75,13 @@ class WorkspaceTabsController extends Controller
      * @param  \App\WokrspaceTabs  $wokrspaceTabs
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, WokrspaceTabs $wokrspaceTabs)
+    public function update(Tab $tab)
     {
-        //
+        $method = request()->has('completed') ? 'complete' : 'incomplete';
+
+        $task->$method();
+
+        return back();
     }
 
     /**
@@ -82,4 +94,6 @@ class WorkspaceTabsController extends Controller
     {
         //
     }
+
+
 }
