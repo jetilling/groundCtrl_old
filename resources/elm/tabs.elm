@@ -1,9 +1,10 @@
 module Tabs exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, p, label, input, h4)
+import Html exposing (Html, button, div, text, p, label, input, h4, a)
 import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (class, classList, type_, placeholder, value)
+import Html.Attributes exposing (class, classList, type_, placeholder, value, href)
+import Http
 
 
 main : Program Flags Model Msg
@@ -121,6 +122,7 @@ view model =
           ]
         ]
       ]
+    , div [] ( renderTabs model.tabs )
     ]
 
 viewFormField : String -> String -> String -> (String -> msg) -> Html msg
@@ -133,6 +135,14 @@ viewFormField labelText name value toMsg  =
 viewInput : String -> (String -> msg) -> Html msg
 viewInput v toMsg =
   input [ class "input", type_ "text", placeholder "", value v, onInput toMsg ] []
+
+renderTabs : List Tab -> List (Html msg)
+renderTabs tabs =
+  List.map renderTab tabs
+
+renderTab : Tab -> Html msg
+renderTab tab =
+  a [ href tab.url ] [ text tab.name ]
 
 -- SUBSCRIPTIONS
 

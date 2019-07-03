@@ -20,8 +20,4 @@
         </div>
     </div>
 </div>
-<!-- <div>
-    <div id="root"></div>
-    <script src="{{ mix('js/index.js') }}"></script>
-</div> -->
 @endsection

@@ -59,10 +59,18 @@
             <div id="elm-tabs"></div>
             <script src="{{ asset('js/tabs.js') }}"></script>
             <script>
+              let tabData = []
+              @foreach ($workspace->tabs as $tab)
+                tabData.push({
+                  id: "{{ $tab->id }}",
+                  name: "{{ $tab->name }}",
+                  url: "{{ $tab->url }}"
+                })
+              @endforeach
               Elm.Tabs.init({
                 node: document.getElementById("elm-tabs"), 
                 flags: { 
-                  tabs: [],
+                  tabs: tabData,
                   workspaceId: {{ $workspace->id }} }
               })
             </script>
@@ -98,13 +106,13 @@
               @include('errors')
 
             </form> -->
-            @if ($workspace->tabs->count())
+            <!-- @if ($workspace->tabs->count())
               <div>
                 @foreach ($workspace->tabs as $tab)
                   <a href="{{ $tab->url }}">{{ $tab->name }}</a>
                 @endforeach
               </div>
-            @endif
+            @endif -->
           <!-- </div> -->
         <!-- </div> -->
       </article>

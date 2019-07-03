@@ -76,6 +76,14 @@ class WorkspaceController extends Controller
      */
     public function show(Workspace $workspace)
     {
+        // $tabs = array();
+        // foreach ($workspace->tabs as $tab) {
+        //     array_push($tabs, [
+        //         'id' => $tab->id, 
+        //         'name' => $tab->name,
+        //         'url' => $tab->url]);
+        // }
+        // $workspace->tabs = $tabs;
         return view('workspace_dash', compact('workspace'));
     }
 
