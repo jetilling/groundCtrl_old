@@ -71,7 +71,9 @@
                 node: document.getElementById("elm-tabs"), 
                 flags: { 
                   tabs: tabData,
-                  workspaceId: {{ $workspace->id }} }
+                  workspaceId: {{ $workspace->id }},
+                  csrfToken: "{{ csrf_token() }}"
+                }
               })
             </script>
             <!-- <form method="POST" action="/home/workspaces/{{ $workspace->id }}/tab" class="box">

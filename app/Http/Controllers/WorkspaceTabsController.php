@@ -43,7 +43,10 @@ class WorkspaceTabsController extends Controller
 
         $workspace->addTab($attributes);
 
-        return back();
+        // return back();
+        return response()->json([
+            'success' => true
+        ]);
     }
 
     /**

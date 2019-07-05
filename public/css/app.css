@@ -11750,11 +11750,15 @@ label.panel-block:hover {
   padding: 20px;
 }
 
-.display {
-  display: inline-block;
+.display-block {
+  display: block;
 }
 
 .no-display {
   display: none;
+}
+
+.tab-link-container {
+  display: block;
 }
 
