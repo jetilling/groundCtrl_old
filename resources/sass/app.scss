@@ -55,3 +55,49 @@
 .tab-link-container {
   display: block;
 }
+
+.is-75vh {
+  height: 75vh;
+}
+
+.dark-tile {
+  background: #313131;
+  color: whitesmoke;
+  border: 1px solid lightgrey;
+}
+
+.lightblue-tile {
+  background: lightblue;
+  border: 1px solid lightgrey;
+}
+
+.white-text {
+  color: whitesmoke;
+}
+
+.cancel-form-btn {
+  font-weight: 400;
+  font-size: 16px;
+  border: none;
+  background: transparent;
+  text-decoration: underline;
+  margin-left: 10px;
+}
+
+.cancel-form-btn:hover {
+  cursor: pointer;
+}
+
+.display-flex {
+  display: flex;
+}
+
+.link {
+  font-weight: 400;
+  color: blue !important;
+}
+
+.center-items {
+  display: flex;
+  justify-content: center;
+}

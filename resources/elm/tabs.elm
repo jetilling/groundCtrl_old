@@ -1,4 +1,4 @@
-module Tabs exposing (..)
+port module Tabs exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, text, p, label, input, h4, a)
@@ -19,6 +19,9 @@ main =
     , subscriptions = subscriptions
   }
 
+port openTabs : List Tab -> Cmd msg
+
+port closeTabs : List Tab -> Cmd msg
 
 -- MODEL
 
@@ -34,6 +37,7 @@ type alias Model =
   , workspaceId : Int
   , csrfToken : String
   , errorOccured : Bool
+  , tabsAreOpen : Bool
   , newTab : Tab
   }
 
@@ -52,7 +56,7 @@ emptyTab =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-  ( (Model flags.tabs False flags.workspaceId flags.csrfToken False emptyTab)
+  ( (Model flags.tabs False flags.workspaceId flags.csrfToken False False emptyTab)
   , Cmd.none
   )
 
@@ -62,6 +66,8 @@ type Msg
   = ShowAddTab 
   | HideAddTab 
   | CreateNewTab
+  | OpenTabs
+  | CloseTabs
   | TabCreated (Result Http.Error Bool )
   | Url String
   | Name String
@@ -80,6 +86,12 @@ update msg model =
 
     Name name ->
       updateNewTab name setTabName model
+
+    OpenTabs ->
+      ( { model | tabsAreOpen = True }, openTabs model.tabs )
+
+    CloseTabs ->
+      ( { model | tabsAreOpen = False }, closeTabs model.tabs )
 
     CreateNewTab ->
       ( model, createTabCommand model model.newTab )
@@ -154,11 +166,31 @@ view model =
     [ div [class "columns"]
       [ div [class "column"] [ p [class "title"] [text "Tabs"] ]
       , div [class "column"] 
-        [ button [ classList
-          [ ("button", True)
-          , ("is-small", True)
+        [ div [class "columns"] 
+          [ if model.tabsAreOpen then
+             div [class "column"] 
+              [ button [ classList
+                [ ("button", True)
+                , ("is-small", True) 
+                ]
+                , onClick CloseTabs ] [ text "Close Tabs"]
+              ]
+            else
+              div [class "column"] 
+              [ button [ classList
+                [ ("button", True)
+                , ("is-small", True) 
+                ]
+                ,onClick OpenTabs ] [ text "Open Tabs"]
+              ]
+          , div [class "column"]
+            [ button [ classList
+              [ ("button", True)
+              , ("is-small", True)
+              ]
+              , onClick ShowAddTab ] [ text "Add Tab" ]
+            ]
           ]
-          , onClick ShowAddTab ] [ text "Add Tab" ]
         ]
       ]
     , p [ class "subtitle" ] [ text "Manage workspace specific browser tabs"]
@@ -178,21 +210,25 @@ view model =
       , viewFormField "Url" "url" model.newTab.url Url
       , viewFormField "Name" "name" model.newTab.name Name
       , div [ class "field" ] 
-        [ div [ class "control" ] 
+        [ div [ class "control", class "display-flex" ] 
           [ button [ classList
               [ ("button", True)
               , ("is-link", True) 
               ]
               , onClick CreateNewTab ] [ text "Add Tab" ]
-            , button [ classList
-              [ ("button", True)
-              , ("is-danger", True) 
-              ]
-              , onClick HideAddTab ] [ text "Cancel" ]
+            , button [ class "cancel-form-btn", onClick HideAddTab ] [ text "Cancel" ]
           ]
         ]
       ]
-    , div [] ( renderTabs model.tabs )
+    , div [ classList [("tile", True), ("is-ancestor", True)]] 
+      [ div [ classList 
+          [ ("tile", True)
+          , ("is-12", True)
+          , ("is-vertical", True)
+          , ("is-parent", True)
+          ]
+        ] ( renderTabs model.tabs )
+      ]
     ]
 
 viewFormField : String -> String -> String -> (String -> msg) -> Html msg
@@ -212,8 +248,37 @@ renderTabs tabs =
 
 renderTab : Tab -> Html msg
 renderTab tab =
-  div [ class "tab-link-container"] 
-  [  a [ href tab.url ] [ text tab.name ]
+  div [ classList 
+      [ ("tile", True)
+      , ("is-child", True)
+      , ("box", True)
+      ]
+    ] 
+  [ div [ class "columns", class "is-4" ] 
+    [ div [ class "column" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
+    , div [ class "column", class "is-two-fifths" ]
+      [ div [ class "columns" ] 
+        [ div [ class "column", class "center-items"] 
+          [ button [ classList 
+              [ ("button", True)
+              , ("is-link", True)
+              , ("is-small", True)
+              , ("is-outlined", True)
+              ]
+            ] [ text "Edit" ]
+          ]
+        , div [ class "column", class "center-items" ] 
+          [ button [ classList 
+              [ ("button", True)
+              , ("is-danger", True)
+              , ("is-small", True)
+              , ("is-outlined", True)
+              ]
+            ] [ text "Delete"]
+          ]
+        ]
+      ]
+    ]
   ]
 
 -- SUBSCRIPTIONS
