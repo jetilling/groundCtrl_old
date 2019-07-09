@@ -39,6 +39,8 @@ type alias Model =
   , errorOccured : Bool
   , tabsAreOpen : Bool
   , newTab : Tab
+  , editTabMode : Bool
+  , deleteTabMode : Bool
   }
 
 type alias Tab =
@@ -56,7 +58,16 @@ emptyTab =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-  ( (Model flags.tabs False flags.workspaceId flags.csrfToken False False emptyTab)
+  ( ( Model 
+    flags.tabs 
+    False 
+    flags.workspaceId 
+    flags.csrfToken
+    False 
+    False 
+    emptyTab
+    False
+    False)
   , Cmd.none
   )
 
@@ -66,11 +77,16 @@ type Msg
   = ShowAddTab 
   | HideAddTab 
   | CreateNewTab
+  | EditTab
   | OpenTabs
   | CloseTabs
-  | TabCreated (Result Http.Error Bool )
+  | TabCreated ( Result Http.Error Bool )
+  | TabUpdated ( Result Http.Error Bool )
+  | TabDeleted ( Result Http.Error Bool )
   | Url String
   | Name String
+  | EnterEditTabMode Tab
+  | DeleteTab Tab
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -79,7 +95,7 @@ update msg model =
       ( { model | showAddTab = True }, Cmd.none)
 
     HideAddTab -> 
-      ( { model | showAddTab = False }, Cmd.none )
+      ( { model | showAddTab = False, newTab = emptyTab, editTabMode = False }, Cmd.none )
 
     Url url ->
       updateNewTab url setTabUrl model
@@ -92,6 +108,15 @@ update msg model =
 
     CloseTabs ->
       ( { model | tabsAreOpen = False }, closeTabs model.tabs )
+    
+    EnterEditTabMode tab ->
+      ( { model | newTab = tab, showAddTab = True, editTabMode = True }, Cmd.none )
+    
+    EditTab ->
+      ( model, updateTabCommand model model.newTab )
+
+    DeleteTab tab ->
+      ( { model | newTab = tab }, deleteTabCommand model tab )
 
     CreateNewTab ->
       ( model, createTabCommand model model.newTab )
@@ -107,41 +132,81 @@ update msg model =
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
+    TabUpdated result ->
+      case result of 
+        Ok tab ->
+          let 
+            newTabList = 
+              replaceTab model.tabs model.newTab
+          in
+            ( { model | tabs = newTabList, newTab = emptyTab, showAddTab = False }, Cmd.none )
+        Err err ->
+          ( { model | errorOccured = True }, Cmd.none)
+
+    TabDeleted result ->
+      case result of 
+        Ok tab ->
+          let 
+            newTabList = 
+              deleteTab model.tabs model.newTab
+          in
+            ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
+        Err err ->
+          ( { model | errorOccured = True }, Cmd.none)
+
 
 updateNewTab : String -> (String -> Tab -> Tab) -> Model -> ( Model, Cmd Msg )
 updateNewTab newValue updateFunction model =
-    let
-        updatedNewTab =
-            updateFunction newValue model.newTab
-    in
-        ( { model | newTab = updatedNewTab }, Cmd.none )
+  let
+    updatedNewTab =
+      updateFunction newValue model.newTab
+  in
+    ( { model | newTab = updatedNewTab }, Cmd.none )
 
 setTabName : String -> Tab -> Tab
 setTabName newName tab =
-    { tab | name = newName }
+  { tab | name = newName }
 
 
 setTabUrl : String -> Tab -> Tab
 setTabUrl newUrl tab =
-    { tab | url = newUrl }
+  { tab | url = newUrl }
 
 createTabCommand : Model -> Tab -> Cmd Msg
 createTabCommand model tab =
-    createPostRequest model tab
+  Http.request
+    { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/tab"
+    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (newTabEncoder tab)
+    , method = "POST"
+    , expect = Http.expectJson TabCreated postResponseDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
 
+updateTabCommand : Model -> Tab -> Cmd Msg
+updateTabCommand model tab =
+  Http.request
+    { url = "http://localhost:8080/home/tabs/" ++ tab.id
+    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (newTabEncoder tab)
+    , method = "PUT"
+    , expect = Http.expectJson TabUpdated postResponseDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
 
-
-createPostRequest : Model -> Tab -> Cmd Msg
-createPostRequest model tab =
-    Http.request
-        { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/tab"
-        , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
-        , body = Http.jsonBody (newTabEncoder tab)
-        , method = "POST"
-        , expect = Http.expectJson TabCreated postResponseDecoder
-        , timeout = Nothing
-        , tracker = Nothing
-        }
+deleteTabCommand : Model -> Tab -> Cmd Msg
+deleteTabCommand model tab =
+  Http.request
+    { url = "http://localhost:8080/home/tabs/" ++ tab.id
+    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (newTabEncoder tab)
+    , method = "DELETE"
+    , expect = Http.expectJson TabDeleted postResponseDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
 
 createHeader : String -> String -> Http.Header
 createHeader key value = 
@@ -149,14 +214,36 @@ createHeader key value =
 
 newTabEncoder : Tab -> Encode.Value
 newTabEncoder tab =
-    Encode.object
-        [ ( "name", Encode.string tab.name )
-        , ( "url", Encode.string tab.url )
-        ]
+  Encode.object
+    [ ( "name", Encode.string tab.name )
+    , ( "url", Encode.string tab.url )
+    ]
 
 postResponseDecoder : Decoder Bool
 postResponseDecoder =
   (field "success" bool)
+
+replaceTab : List Tab -> Tab -> List Tab
+replaceTab tabs newTab =
+  let
+    replace tab =
+      if tab.id == newTab.id then
+        { tab | id = newTab.id, name = newTab.name, url = newTab.url }
+      else
+        tab
+  in
+    List.map replace tabs
+
+deleteTab : List Tab -> Tab -> List Tab
+deleteTab tabs newTab =
+  let
+    search tab =
+      if tab.id == newTab.id then
+        False
+      else
+        True
+  in
+    List.filter search tabs
 
 -- VIEW
 
@@ -211,11 +298,18 @@ view model =
       , viewFormField "Name" "name" model.newTab.name Name
       , div [ class "field" ] 
         [ div [ class "control", class "display-flex" ] 
-          [ button [ classList
-              [ ("button", True)
-              , ("is-link", True) 
-              ]
-              , onClick CreateNewTab ] [ text "Add Tab" ]
+          [ if model.editTabMode then 
+              button [ classList
+                [ ("button", True)
+                , ("is-link", True) 
+                ]
+                , onClick EditTab ] [ text "Edit Tab" ]
+            else
+              button [ classList
+                [ ("button", True)
+                , ("is-link", True) 
+                ]
+                , onClick CreateNewTab ] [ text "Add Tab" ]
             , button [ class "cancel-form-btn", onClick HideAddTab ] [ text "Cancel" ]
           ]
         ]
@@ -242,11 +336,11 @@ viewInput : String -> (String -> msg) -> Html msg
 viewInput v toMsg =
   input [ class "input", type_ "text", placeholder "", value v, onInput toMsg ] []
 
-renderTabs : List Tab -> List (Html msg)
+renderTabs : List Tab -> List (Html Msg)
 renderTabs tabs =
   List.map renderTab tabs
 
-renderTab : Tab -> Html msg
+renderTab : Tab -> Html Msg
 renderTab tab =
   div [ classList 
       [ ("tile", True)
@@ -265,6 +359,7 @@ renderTab tab =
               , ("is-small", True)
               , ("is-outlined", True)
               ]
+              , onClick ( EnterEditTabMode tab )
             ] [ text "Edit" ]
           ]
         , div [ class "column", class "center-items" ] 
@@ -274,6 +369,7 @@ renderTab tab =
               , ("is-small", True)
               , ("is-outlined", True)
               ]
+              , onClick ( DeleteTab tab )
             ] [ text "Delete"]
           ]
         ]
