@@ -12,3 +12,4 @@ yarn-error.log
 .idea/
 /public/js/*.js
 /coverage
+/elm-stuff
