@@ -9,7 +9,7 @@
     <p>{{ $workspace->description }}</p>
   </div>
 
-  <div class="tile is-ancestor is-75vh">
+  <!-- <div class="tile is-ancestor is-75vh">
 
     <div class="tile is-parent">
       <article class="tile is-child notification dark-tile">
@@ -25,54 +25,56 @@
       
     <div class="tile is-parent">
       <article class="tile is-child notification lightblue-tile">
-        <!-- ELM INJECTION -->
-        <div id="elm-tabs"></div>
-        <script src="{{ asset('js/tabs.js') }}"></script>
-        <script>
-          let tabData = []
-          @foreach ($workspace->tabs as $tab)
-            tabData.push({
-              id: "{{ $tab->id }}",
-              name: "{{ $tab->name }}",
-              url: "{{ $tab->url }}"
-            })
-          @endforeach
-          let app = Elm.Tabs.init({
-            node: document.getElementById("elm-tabs"), 
-            flags: { 
-              tabs: tabData,
-              workspaceId: {{ $workspace->id }},
-              csrfToken: "{{ csrf_token() }}"
-            }
-          })
-          
-          let tabs = []
-          app.ports.openTabs.subscribe(function(data) {
-            data.forEach(function(tab) {
-              tabs.push(window.open(tab.url, '_blank'))
-            })
-            localStorage.setItem("{{ $workspace->name }}TabsOpen", true)
-          });
-
-          app.ports.closeTabs.subscribe(function(data) {
-            tabs.forEach(function(tab){
-              tab.close()
-            })
-            localStorage.removeItem("{{ $workspace->name }}TabsOpen")
-          });
-
-          window.onbeforeunload = function(event) { 
-            let tabsOpen = localStorage.getItem("{{ $workspace->name }}TabsOpen")
-            if (tabsOpen) {
-              return confirm()
-            }
-          };
-
-        </script>
+       
       </article>
     </div>
 
-  </div>
+  </div> -->
+
+  <!-- ELM INJECTION -->
+  <div id="elm-main"></div>
+  <script src="{{ asset('js/main.js') }}"></script>
+  <script>
+    let tabData = []
+    @foreach ($workspace->tabs as $tab)
+      tabData.push({
+        id: "{{ $tab->id }}",
+        name: "{{ $tab->name }}",
+        url: "{{ $tab->url }}"
+      })
+    @endforeach
+    let app = Elm.Main.init({
+      node: document.getElementById("elm-main"), 
+      flags: { 
+        tabs: tabData,
+        workspaceId: {{ $workspace->id }},
+        csrfToken: "{{ csrf_token() }}"
+      }
+    })
+    
+    let tabs = []
+    app.ports.openTabs.subscribe(function(data) {
+      data.forEach(function(tab) {
+        tabs.push(window.open(tab.url, '_blank'))
+      })
+      localStorage.setItem("{{ $workspace->name }}TabsOpen", true)
+    });
+
+    app.ports.closeTabs.subscribe(function(data) {
+      tabs.forEach(function(tab){
+        tab.close()
+      })
+      localStorage.removeItem("{{ $workspace->name }}TabsOpen")
+    });
+
+    window.onbeforeunload = function(event) { 
+      let tabsOpen = localStorage.getItem("{{ $workspace->name }}TabsOpen")
+      if (tabsOpen) {
+        return confirm()
+      }
+    };
+
+  </script>
 
 </section>
 @endsection
