@@ -5,30 +5,8 @@
   <div class="columns is-centered">
     <h1 class="title">{{ $workspace->name }}</h1>
   </div>
-  <div class="columns is-centered">
+  <!-- <div class="columns is-centered">
     <p>{{ $workspace->description }}</p>
-  </div>
-
-  <!-- <div class="tile is-ancestor is-75vh">
-
-    <div class="tile is-parent">
-      <article class="tile is-child notification dark-tile">
-        <p class="title white-text">Tasks</p>
-      </article>
-    </div>
-
-    <div class="tile is-parent">
-      <article class="tile is-child notification dark-tile">
-        <p class="title white-text">Notes</p>
-      </article>
-    </div>
-      
-    <div class="tile is-parent">
-      <article class="tile is-child notification lightblue-tile">
-       
-      </article>
-    </div>
-
   </div> -->
 
   <!-- ELM INJECTION -->
@@ -53,14 +31,14 @@
     })
     
     let tabs = []
-    app.ports.openTabs.subscribe(function(data) {
+    app.ports.openBrowserTabs.subscribe(function(data) {
       data.forEach(function(tab) {
         tabs.push(window.open(tab.url, '_blank'))
       })
       localStorage.setItem("{{ $workspace->name }}TabsOpen", true)
     });
 
-    app.ports.closeTabs.subscribe(function(data) {
+    app.ports.closeBrowserTabs.subscribe(function(data) {
       tabs.forEach(function(tab){
         tab.close()
       })
