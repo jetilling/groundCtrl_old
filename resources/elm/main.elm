@@ -330,7 +330,21 @@ renderTasksView model =
     , ("dark", True)
     , ("is-bold", True)
     , ("notification", True)
-    ] ] [ text "Tasks" ]
+    ] ] [ renderTasksContent model ]
+
+
+renderTasksContent : Model -> Html Msg
+renderTasksContent model =
+  div [class "content"] 
+    [ div [class "columns"]
+      [ div [class "column"] 
+        [ p [class "title"] [text "Tasks"] 
+        , p [ class "subtitle" ] [ text "Add and keep track of Workspace specific tasks"]
+        ]
+      , div [class "column"] []
+      ]
+      
+    ]
 
 
 -- NOTES VIEW RENDER FUNCTIONS
@@ -421,8 +435,8 @@ renderTabsContent model =
             ]
           ]
         ]
-      , div [ class "column", class "is-two-fifths", class "is-offset-2" ]
-        [ div [ classList [("tile", True), ("is-ancestor", True)]] 
+      , div [ class "column", class "is-one-quarter", class "is-offset-2" ]
+        [ div [ class "tile", class "is-ancestor" ] 
           [ div [ classList 
               [ ("tile", True)
               , ("is-12", True)
@@ -477,14 +491,12 @@ renderTab tab =
             ] [ text "Edit" ]
           ]
         , div [ class "column", class "center-items" ] 
-          [ button [ classList 
-              [ ("button", True)
-              , ("is-danger", True)
-              , ("is-small", True)
-              , ("is-outlined", True)
-              ]
-              , onClick ( DeleteTab tab )
-            ] [ text "Delete"]
+          [ button 
+            [ class "delete"
+            , class "is-medium"
+            , class "is-red"
+            , onClick ( DeleteTab tab )
+            ] []
           ]
         ]
       ]
