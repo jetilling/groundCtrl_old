@@ -31,10 +31,11 @@ class WorkspaceTabsController extends Controller
             'name' => 'required'
         ]);
 
-        $workspace->addTab($attributes);
+        $id = $workspace->addTab($attributes);
 
         return response()->json([
-            'success' => true
+            'success' => true,
+            'newItemId' => $id
         ]);
     }
 

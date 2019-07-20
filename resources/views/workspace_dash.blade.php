@@ -2,9 +2,9 @@
 
 @section('content')
 <section class="light-background" style="padding-top: 50px;">
-  <div class="columns is-centered">
+  <!-- <div class="columns is-centered">
     <h1 class="title">{{ $workspace->name }}</h1>
-  </div>
+  </div> -->
   <!-- <div class="columns is-centered">
     <p>{{ $workspace->description }}</p>
   </div> -->
@@ -16,7 +16,7 @@
     let tabData = []
     @foreach ($workspace->tabs as $tab)
       tabData.push({
-        id: "{{ $tab->id }}",
+        id: {{ $tab->id }},
         name: "{{ $tab->name }}",
         url: "{{ $tab->url }}"
       })
@@ -26,6 +26,8 @@
       flags: { 
         tabs: tabData,
         workspaceId: {{ $workspace->id }},
+        workspaceName: "{{ $workspace->name }}",
+        workspacePrimaryColor: "{{ $workspace->icon_primary_color }}",
         csrfToken: "{{ csrf_token() }}"
       }
     })

@@ -3,10 +3,13 @@ port module Main exposing (..)
 import Browser
 import Http
 import Json.Encode as Encode
-import Json.Decode exposing (Decoder, field, string, bool)
-import Html exposing (Html, button, div, text, p, label, input, h4, a, ul, li, span)
-import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (class, classList, type_, placeholder, value, href)
+import Json.Decode exposing (Decoder, field, string, bool, int, map, map2)
+import Html exposing (Html, Attribute, button, div, text, p, label, input, h4, a, ul, li, span)
+import Html.Events exposing (onClick, on, keyCode, onInput)
+import Html.Attributes exposing (class, classList, type_, placeholder, value, href, style)
+import Debug
+
+import Converter exposing (..)
 
 -- MAIN
 
@@ -28,13 +31,18 @@ port closeBrowserTabs : List Tab -> Cmd msg
 type alias Flags =
   { tabs : List Tab
   , workspaceId : Int
+  , workspaceName : String
+  , workspacePrimaryColor : String
   , csrfToken : String 
   }
 
 type alias Model = 
   { currentView : CurrentView
   , workspaceId : Int
+  , workspaceName : String
+  , workspacePrimaryColor : String
   , csrfToken : String
+  , commandString : String
   , errorOccured : Bool
   , tabs : List Tab
   , newTab : Tab
@@ -46,16 +54,22 @@ type CurrentView
   = Tabs
   | Notes
   | Tasks
+  | Help
 
 type alias Tab =
-  { id : String
+  { id : Int
   , url : String
   , name : String
   }
 
+type alias CreateResponse =
+  { success : Bool
+  , newItemId : Int
+  }
+
 emptyTab : Tab
 emptyTab =
-  { id = "" 
+  { id = 0 
   , url = ""
   , name = ""
   }
@@ -63,9 +77,12 @@ emptyTab =
 init : Flags -> (Model, Cmd Msg)
 init flags =
   ( ( Model
-    Tasks
+    Help
     flags.workspaceId
+    flags.workspaceName
+    flags.workspacePrimaryColor
     flags.csrfToken
+    ""
     False
     flags.tabs
     emptyTab
@@ -79,19 +96,15 @@ init flags =
 
 
 type Msg
-  = ViewTasks
-  | ViewNotes
-  | ViewTabs
-  | OpenBrowserTabs
+  = OpenBrowserTabs
   | CloseBrowserTabs
-  | TabUrl String
-  | TabName String
+  | UpdateCommandString String
+  | KeyDown Int
   | EnterEditTabMode Tab
   | EditTab
   | DeleteTab Tab
   | CreateNewTab
-  | ClearEditTab
-  | TabCreated ( Result Http.Error Bool )
+  | TabCreated ( Result Http.Error CreateResponse )
   | TabUpdated ( Result Http.Error Bool )
   | TabDeleted ( Result Http.Error Bool )
 
@@ -99,14 +112,6 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    ViewTasks ->
-      ({ model | currentView = Tasks }, Cmd.none )
-    
-    ViewNotes ->
-      ({ model | currentView = Notes }, Cmd.none )
-
-    ViewTabs ->
-      ({ model | currentView = Tabs }, Cmd.none )
 
     OpenBrowserTabs ->
       ( { model | browserTabsAreOpen = True }, openBrowserTabs model.tabs )
@@ -114,11 +119,14 @@ update msg model =
     CloseBrowserTabs ->
       ( { model | browserTabsAreOpen = False }, closeBrowserTabs model.tabs )
 
-    TabUrl url ->
-      updateNewTab url setTabUrl model
+    UpdateCommandString commandString ->
+      ( { model | commandString = commandString }, Cmd.none)
 
-    TabName name ->
-      updateNewTab name setTabName model
+    KeyDown key ->
+      if key == 13 then
+        handleCommand model
+      else
+        (model, Cmd.none)
 
     EnterEditTabMode tab ->
       ( { model | newTab = tab, editTabMode = True }, Cmd.none )
@@ -131,16 +139,19 @@ update msg model =
 
     CreateNewTab ->
       ( model, createTabCommand model model.newTab )
-
-    ClearEditTab ->
-      ( { model | newTab = emptyTab }, Cmd.none )
     
     TabCreated result ->
       case result of 
         Ok tab ->
           let 
+            addTabId currentTab tabResponse = 
+              { currentTab | id = tabResponse.newItemId }
+
+            newTab = 
+              addTabId model.newTab tab
+
             newTabList = 
-              List.append model.tabs [model.newTab]
+              List.append model.tabs [newTab]
           in
             ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
         Err err ->
@@ -169,6 +180,57 @@ update msg model =
           ( { model | errorOccured = True }, Cmd.none)
 
 
+handleCommand : Model -> ( Model, Cmd Msg )
+handleCommand model =
+  let
+      lowerCaseCmd =
+        String.toLower model.commandString
+
+      commandRecord =
+        Converter.convertToAST model.commandString
+
+  in
+    if commandRecord.function == "view" then handleViewCommand model commandRecord
+    else if commandRecord.function == "open" then handleOpenCommand model commandRecord
+    else if commandRecord.function == "close" then handleCloseCommand model
+    else if commandRecord.function == "create" then handleCreateCommand model commandRecord
+
+    -- else if String.startsWith "edit" lowerCaseCmd then
+
+    -- else if String.startsWith "delete" lowerCaseCmd then
+
+    -- else if String.startsWith "complete" lowerCaseCmd then
+
+    else
+      ( model, Cmd.none )
+
+
+handleViewCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
+handleViewCommand model commandRecord =
+  if String.contains "tab" commandRecord.view then ( { model | currentView = Tabs, commandString = "" }, Cmd.none )
+  else if String.contains "task" commandRecord.view then ( { model | currentView = Tasks, commandString = "" }, Cmd.none )
+  else if String.contains "note" commandRecord.view then ( { model | currentView = Notes, commandString = "" }, Cmd.none )
+  else ( model, Cmd.none )
+
+
+handleOpenCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
+handleOpenCommand model commandRecord =
+  if String.contains "tab" commandRecord.view then ( { model | browserTabsAreOpen = True, commandString = "" }, openBrowserTabs model.tabs )
+  else ( model, Cmd.none )
+
+
+handleCloseCommand : Model -> ( Model, Cmd Msg )
+handleCloseCommand model =
+  if model.browserTabsAreOpen then ( { model | browserTabsAreOpen = False, commandString = "" }, closeBrowserTabs model.tabs )
+  else ( model, Cmd.none )
+
+
+handleCreateCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
+handleCreateCommand model commandRecord =
+  if String.contains "tab" commandRecord.view then handleCreateTab model commandRecord.arguments
+  else if String.contains "task" commandRecord.view then ( { model | currentView = Tasks, commandString = "" }, Cmd.none )
+  else if String.contains "note" commandRecord.view then ( { model | currentView = Notes, commandString = "" }, Cmd.none )
+  else ( model, Cmd.none )
 
 
 -- TASKS UPDATE FUNCTIONS
@@ -178,13 +240,33 @@ update msg model =
 -- TABS UPDATE FUNCTIONS
 
 
-updateNewTab : String -> (String -> Tab -> Tab) -> Model -> ( Model, Cmd Msg )
-updateNewTab newValue updateFunction model =
+handleCreateTab : Model -> List String -> ( Model, Cmd Msg )
+handleCreateTab model valuesForCreate =
+  let
+      name =
+        case List.head valuesForCreate of 
+          Just extractedName ->
+            String.trim extractedName 
+          Nothing ->
+           ""
+
+      url =
+        case List.head (List.drop 1 valuesForCreate) of 
+          Just extractedUrl ->
+            String.trim extractedUrl
+          Nothing ->
+           ""
+  in
+    updateNewTab model url name model.newTab
+
+
+updateNewTab : Model -> String -> String -> Tab -> ( Model, Cmd Msg )
+updateNewTab model newUrl newName tab =
   let
     updatedNewTab =
-      updateFunction newValue model.newTab
+      { tab | name = newName, url = newUrl }
   in
-    ( { model | newTab = updatedNewTab }, Cmd.none )
+    ( { model | newTab = updatedNewTab, commandString = "" }, createTabCommand model updatedNewTab )
 
 
 setTabName : String -> Tab -> Tab
@@ -204,7 +286,7 @@ createTabCommand model tab =
     , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
     , body = Http.jsonBody (newTabEncoder tab)
     , method = "POST"
-    , expect = Http.expectJson TabCreated postResponseDecoder
+    , expect = Http.expectJson TabCreated postCreateResponseDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
@@ -213,7 +295,7 @@ createTabCommand model tab =
 updateTabCommand : Model -> Tab -> Cmd Msg
 updateTabCommand model tab =
   Http.request
-    { url = "http://localhost:8080/home/tabs/" ++ tab.id
+    { url = "http://localhost:8080/home/tabs/" ++ String.fromInt tab.id
     , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
     , body = Http.jsonBody (newTabEncoder tab)
     , method = "PUT"
@@ -226,7 +308,7 @@ updateTabCommand model tab =
 deleteTabCommand : Model -> Tab -> Cmd Msg
 deleteTabCommand model tab =
   Http.request
-    { url = "http://localhost:8080/home/tabs/" ++ tab.id
+    { url = "http://localhost:8080/home/tabs/" ++ String.fromInt tab.id
     , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
     , body = Http.jsonBody (newTabEncoder tab)
     , method = "DELETE"
@@ -247,6 +329,13 @@ newTabEncoder tab =
     [ ( "name", Encode.string tab.name )
     , ( "url", Encode.string tab.url )
     ]
+
+
+postCreateResponseDecoder : Decoder CreateResponse
+postCreateResponseDecoder =
+  map2 CreateResponse
+    (field "success" bool)
+    (field "newItemId" int)
 
 
 postResponseDecoder : Decoder Bool
@@ -278,189 +367,71 @@ deleteTab tabs newTab =
     List.filter search tabs
 
 
+onKeyDown : (Int -> msg) -> Attribute msg
+onKeyDown tagger =
+  on "keydown" (map tagger keyCode)
+
+
 -- VIEW
 
 
 view : Model -> Html Msg
 view model =
-  div [] 
-    [ div [ classList 
-        [ ("tabs", True)
-        , ("is-centered", True)
-        , ("is-boxed", True)
-        , ("is-medium", True)
-        ]
-      ] 
-      [ div [ class "container" ] 
-        [ ul [] 
-          [ li [ classList[("tab", True ), ("is-active", model.currentView == Tasks)] ]
-              [ a [ onClick ViewTasks ] [ span [] [ text "Tasks" ] ] ]
-          , li [ classList[("tab", True ), ("is-active", model.currentView == Notes)] ] 
-              [ a [ onClick ViewNotes ] [ span [] [ text "Notes" ] ] ]
-          , li [ classList[("tab", True ), ("is-active", model.currentView == Tabs)] ]
-              [ a [ onClick ViewTabs ] [ span [] [ text "Tabs" ] ] ]
-          ]
-        ]
-      ]
-    , div [ ]
-      [ div [ class "content-tab" ] [ 
-        case model.currentView of
-          Tasks ->
-            renderTasksView model
+  div 
+    [ class "hero"
+    , class "is-fullheight"
+    , class "is-medium"
+    , class "dark"
+    , class "is-bold"
+    , class "notification"
+    , class "workspace-border"
+    , style "border-color" model.workspacePrimaryColor
+    ] 
+    [ div [ class "content" ] 
+      [ renderCommandLineInput model 
+      , renderCommandLineResponse model ]
+    ]
 
-          Notes -> 
-            renderNotesView model
-
-          Tabs ->
-            renderTabsView model
-       ] 
+renderCommandLineInput : Model -> Html Msg
+renderCommandLineInput model =
+  div [ class "columns" ] 
+  [ div [ class "column", class "is-one-quarter", class "center-vetically" ] [ p [ class "title" ] [ text model.workspaceName ] ]
+  , div [ class "column" ] 
+    [ div [ class "control", class "is-large" ]
+      [ input [ class "input", class "is-large", type_ "text", value model.commandString, onInput UpdateCommandString, onKeyDown KeyDown ] []
       ]
     ]
+  ]
+
+
+renderCommandLineResponse : Model -> Html Msg
+renderCommandLineResponse model =
+  case model.currentView of
+    Tabs ->
+      div [ ] [ renderTabsList model ]
+    Tasks ->
+      div [ class "title" ] [ text "tasks" ]
+    Notes ->
+      div [ class "title" ] [ text "notes" ]
+    Help ->
+      div [ class "title" ] [ text "help" ]
 
 
 -- TASKS VIEW RENDER FUNCTIONS
 
 
-renderTasksView : Model -> Html Msg
-renderTasksView model =
-  div [ classList 
-    [ ("hero", True)
-    , ("is-fullheight", True)
-    , ("is-medium", True)
-    , ("dark", True)
-    , ("is-bold", True)
-    , ("notification", True)
-    ] ] [ renderTasksContent model ]
-
-
-renderTasksContent : Model -> Html Msg
-renderTasksContent model =
-  div [class "content"] 
-    [ div [class "columns"]
-      [ div [class "column"] 
-        [ p [class "title"] [text "Tasks"] 
-        , p [ class "subtitle" ] [ text "Add and keep track of Workspace specific tasks"]
-        ]
-      , div [class "column"] []
-      ]
-      
-    ]
-
-
 -- NOTES VIEW RENDER FUNCTIONS
-
-
-renderNotesView : Model -> Html Msg
-renderNotesView model =
-  div [ classList 
-    [ ("hero", True)
-    , ("is-fullheight", True)
-    , ("is-medium", True)
-    , ("dark", True)
-    , ("is-bold", True)
-    , ("notification", True)
-    ] ] [ text "Notes" ]
 
 
 -- TABS VIEW RENDER FUNCTIONS
 
 
-renderTabsView : Model -> Html Msg
-renderTabsView model =
-  div [ classList 
-    [ ("hero", True)
-    , ("is-fullheight", True)
-    , ("is-medium", True)
-    , ("lightblue", True)
-    , ("is-bold", True)
-    , ("notification", True)
-    ] ] [ renderTabsContent model ]
-
-
-renderTabsContent : Model -> Html Msg
-renderTabsContent model =
+renderTabsList : Model -> Html Msg
+renderTabsList model =
   div [class "content"] 
-    [ div [class "columns"]
-      [ div [class "column"] [ p [class "title"] [text "Tabs"] ]
-      , div [class "column"] 
-        [ div [class "columns"] 
-          [ if model.browserTabsAreOpen then
-             div [class "column"] 
-              [ button [ classList
-                [ ("button", True)
-                , ("is-small", True) 
-                ]
-                , onClick CloseBrowserTabs ] [ text "Close Tabs In Browser"]
-              ]
-            else
-              div [class "column"] 
-              [ button [ classList
-                [ ("button", True)
-                , ("is-small", True) 
-                ]
-                , onClick OpenBrowserTabs ] [ text "Open Tabs In Browser"]
-              ]
-          ]
-        ]
-      ]
-    , p [ class "subtitle" ] [ text "Manage workspace specific browser tabs"]
-    , p [ classList 
-          [ ("error-msg", True)
-          , ("display-block", model.errorOccured)
-          , ("no-display", not model.errorOccured)
-          ] 
-        ] [ text "An error occurred while trying to add a new tab" ]
-    , div [ class "columns" ] 
-      [ div [ class "column", class "is-one-third" ] 
-        [ div [ class "box" ] 
-          [ h4 [ class "title" ] [ text "New Tab" ]
-          , viewFormField "Url" "url" model.newTab.url TabUrl
-          , viewFormField "Name" "name" model.newTab.name TabName
-          , div [ class "field" ] 
-            [ div [ class "control", class "display-flex" ] 
-              [ if model.editTabMode then 
-                  button [ classList
-                    [ ("button", True)
-                    , ("is-link", True) 
-                    ]
-                    , onClick EditTab ] [ text "Edit Tab" ]
-                else
-                  button [ classList
-                    [ ("button", True)
-                    , ("is-link", True) 
-                    ]
-                    , onClick CreateNewTab ] [ text "Add Tab" ]
-                , button [ class "cancel-form-btn", onClick ClearEditTab ] [ text "Cancel" ]
-              ]
-            ]
-          ]
-        ]
-      , div [ class "column", class "is-one-quarter", class "is-offset-2" ]
-        [ div [ class "tile", class "is-ancestor" ] 
-          [ div [ classList 
-              [ ("tile", True)
-              , ("is-12", True)
-              , ("is-vertical", True)
-              , ("is-parent", True)
-              ]
-            ] ( renderTabs model.tabs )
-          ]
-        ]
-      ]
+    [ div [ class "columns", class "is-multiline" ] 
+      ( renderTabs model.tabs ) 
     ]
-
-
-viewFormField : String -> String -> String -> (String -> msg) -> Html msg
-viewFormField labelText name value toMsg  =
-  div [ class "field" ] 
-    [ label [ class "label" ] [ text labelText ]
-    , div [ class "control" ] [ viewInput value toMsg ]
-  ]
-
-
-viewInput : String -> (String -> msg) -> Html msg
-viewInput v toMsg =
-  input [ class "input", type_ "text", placeholder "", value v, onInput toMsg ] []
 
 
 renderTabs : List Tab -> List (Html Msg)
@@ -470,33 +441,29 @@ renderTabs tabs =
 
 renderTab : Tab -> Html Msg
 renderTab tab =
-  div [ classList 
-      [ ("tile", True)
-      , ("is-child", True)
-      , ("box", True)
-      ]
-    ] 
-  [ div [ class "columns", class "is-4" ] 
-    [ div [ class "column", class "is-three-fifths" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
-    , div [ class "column", class "is-two-fifths" ]
-      [ div [ class "columns" ] 
-        [ div [ class "column", class "center-items"] 
-          [ button [ classList 
-              [ ("button", True)
-              , ("is-link", True)
-              , ("is-small", True)
-              , ("is-outlined", True)
-              ]
+  div [ class "column", class "is-one-quarter"]
+  [ div [class "box", class "set-box-height" ]
+    [div [ class "columns", class "is-4" ] 
+      [ div [ class "column", class "is-three-fifths" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
+      , div [ class "column", class "is-two-fifths" ]
+        [ div [ class "columns" ] 
+          [ div [ class "column", class "center-items"] 
+            [ button 
+              [ class "button"
+              , class "is-link"
+              , class "is-small"
+              , class "is-outlined"
               , onClick ( EnterEditTabMode tab )
-            ] [ text "Edit" ]
-          ]
-        , div [ class "column", class "center-items" ] 
-          [ button 
-            [ class "delete"
-            , class "is-medium"
-            , class "is-red"
-            , onClick ( DeleteTab tab )
-            ] []
+              ] [ text "Edit" ]
+            ]
+          , div [ class "column", class "center-items" ] 
+            [ button 
+              [ class "delete"
+              , class "is-medium"
+              , class "is-red"
+              , onClick ( DeleteTab tab )
+              ] []
+            ]
           ]
         ]
       ]

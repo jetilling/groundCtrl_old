@@ -21,7 +21,7 @@ class Workspace extends Model
 
     public function addTab($tab)
     {
-        $this->tabs()->create($tab);
+        return $this->tabs()->create($tab)->id;
     }
 
     // NOTES
