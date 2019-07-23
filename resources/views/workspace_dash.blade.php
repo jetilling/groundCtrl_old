@@ -18,7 +18,8 @@
       tabData.push({
         id: {{ $tab->id }},
         name: "{{ $tab->name }}",
-        url: "{{ $tab->url }}"
+        url: "{{ $tab->url }}",
+        uiid: "{{$loop->iteration}}"
       })
     @endforeach
     let app = Elm.Main.init({

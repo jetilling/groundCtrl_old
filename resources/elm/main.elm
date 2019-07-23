@@ -47,7 +47,6 @@ type alias Model =
   , tabs : List Tab
   , newTab : Tab
   , browserTabsAreOpen : Bool
-  , editTabMode : Bool
   }
 
 type CurrentView
@@ -60,6 +59,7 @@ type alias Tab =
   { id : Int
   , url : String
   , name : String
+  , uiid : String
   }
 
 type alias CreateResponse =
@@ -72,6 +72,7 @@ emptyTab =
   { id = 0 
   , url = ""
   , name = ""
+  , uiid = ""
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -86,7 +87,6 @@ init flags =
     False
     flags.tabs
     emptyTab
-    False
     False)
   , Cmd.none
   )
@@ -103,7 +103,6 @@ type Msg
   | EnterEditTabMode Tab
   | EditTab
   | DeleteTab Tab
-  | CreateNewTab
   | TabCreated ( Result Http.Error CreateResponse )
   | TabUpdated ( Result Http.Error Bool )
   | TabDeleted ( Result Http.Error Bool )
@@ -129,16 +128,17 @@ update msg model =
         (model, Cmd.none)
 
     EnterEditTabMode tab ->
-      ( { model | newTab = tab, editTabMode = True }, Cmd.none )
+      let 
+        commandString =
+          "edit tab " ++ tab.uiid ++ " [" ++ tab.name ++ ", " ++ tab.url ++ "]"
+      in
+        ( { model | newTab = tab, commandString = commandString }, Cmd.none )
     
     EditTab ->
       ( model, updateTabCommand model model.newTab )
 
     DeleteTab tab ->
       ( { model | newTab = tab }, deleteTabCommand model tab )
-
-    CreateNewTab ->
-      ( model, createTabCommand model model.newTab )
     
     TabCreated result ->
       case result of 
@@ -187,13 +187,14 @@ handleCommand model =
         String.toLower model.commandString
 
       commandRecord =
-        Converter.convertToAST model.commandString
+        Converter.convertToRecord model.commandString
 
   in
     if commandRecord.function == "view" then handleViewCommand model commandRecord
     else if commandRecord.function == "open" then handleOpenCommand model commandRecord
     else if commandRecord.function == "close" then handleCloseCommand model
     else if commandRecord.function == "create" then handleCreateCommand model commandRecord
+    else if commandRecord.function == "edit" then handleEditCommand model commandRecord
 
     -- else if String.startsWith "edit" lowerCaseCmd then
 
@@ -233,6 +234,14 @@ handleCreateCommand model commandRecord =
   else ( model, Cmd.none )
 
 
+handleEditCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg)
+handleEditCommand model commandRecord = 
+  if String.contains "tab" commandRecord.view then handleEditTab model commandRecord
+  else if String.contains "task" commandRecord.view then ( { model | currentView = Tasks, commandString = "" }, Cmd.none )
+  else if String.contains "note" commandRecord.view then ( { model | currentView = Notes, commandString = "" }, Cmd.none )
+  else ( model, Cmd.none )
+
+
 -- TASKS UPDATE FUNCTIONS
 
 -- NOTES UPDATE FUNCTIONS
@@ -243,21 +252,58 @@ handleCreateCommand model commandRecord =
 handleCreateTab : Model -> List String -> ( Model, Cmd Msg )
 handleCreateTab model valuesForCreate =
   let
-      name =
-        case List.head valuesForCreate of 
-          Just extractedName ->
-            String.trim extractedName 
-          Nothing ->
-           ""
+    name = 
+      parseNameArgument valuesForCreate
 
-      url =
-        case List.head (List.drop 1 valuesForCreate) of 
-          Just extractedUrl ->
-            String.trim extractedUrl
-          Nothing ->
-           ""
+    url =
+      parseUrlArgument valuesForCreate
   in
     updateNewTab model url name model.newTab
+
+
+handleEditTab : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
+handleEditTab model commandRecord = 
+  let
+
+    matchingTab =
+      let
+        findTabIdMatch tab = 
+          if tab.uiid == commandRecord.itemId then True
+          else False
+      in 
+        case List.head (List.filter findTabIdMatch model.tabs) of
+          Just extractedTab ->
+            extractedTab
+          Nothing -> 
+            emptyTab
+
+    name = 
+      parseNameArgument commandRecord.arguments
+
+    url = 
+      parseUrlArgument commandRecord.arguments
+
+    updatedTab =
+      { id = matchingTab.id, name = name, url = url, uiid = commandRecord.itemId }
+  in
+    ( { model | newTab = updatedTab, commandString = "" }, updateTabCommand model updatedTab )
+
+parseNameArgument : List String -> String
+parseNameArgument argumentList =
+  case List.head argumentList of 
+    Just extractedName ->
+      String.trim extractedName 
+    Nothing ->
+      ""
+
+
+parseUrlArgument : List String -> String
+parseUrlArgument argumentList =
+  case List.head (List.drop 1 argumentList) of 
+    Just extractedUrl ->
+      String.trim extractedUrl
+    Nothing ->
+      ""
 
 
 updateNewTab : Model -> String -> String -> Tab -> ( Model, Cmd Msg )
@@ -430,21 +476,17 @@ renderTabsList : Model -> Html Msg
 renderTabsList model =
   div [class "content"] 
     [ div [ class "columns", class "is-multiline" ] 
-      ( renderTabs model.tabs ) 
+      ( List.map renderTab model.tabs ) 
     ]
-
-
-renderTabs : List Tab -> List (Html Msg)
-renderTabs tabs =
-  List.map renderTab tabs
 
 
 renderTab : Tab -> Html Msg
 renderTab tab =
-  div [ class "column", class "is-one-quarter"]
+  div [ class "column", class "is-one-third"]
   [ div [class "box", class "set-box-height" ]
     [div [ class "columns", class "is-4" ] 
-      [ div [ class "column", class "is-three-fifths" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
+      [ div [ class "column", class "is-one-fifth" ] [ text tab.uiid ]
+      , div [ class "column", class "is-two-fifths" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
       , div [ class "column", class "is-two-fifths" ]
         [ div [ class "columns" ] 
           [ div [ class "column", class "center-items"] 
@@ -469,6 +511,7 @@ renderTab tab =
       ]
     ]
   ]
+
 
 -- SUBSCRIPTIONS
 

@@ -1,10 +1,11 @@
-module Converter exposing (convertToAST, CommandRecord)
+module Converter exposing (convertToRecord, CommandRecord)
 
 import Array
 
 type alias CommandRecord = 
   { function : String
   , view : String
+  , itemId : String
   , arguments : List String
   }
 
@@ -12,11 +13,12 @@ newCommandRecord : CommandRecord
 newCommandRecord =
   { function = ""
   , view = ""
+  , itemId = ""
   , arguments = []
   }
 
-convertToAST : String -> CommandRecord
-convertToAST commandString = 
+convertToRecord : String -> CommandRecord
+convertToRecord commandString = 
   let
       splitCmdAndArgumentList = 
         if String.contains "[" commandString then String.split "[" commandString
@@ -51,13 +53,20 @@ convertToAST commandString =
 
       view =
         case Array.get 1 (Array.fromList splitCmdList) of 
+            Just item ->
+              String.toLower item
+            Nothing ->
+              ""
+      
+      itemId =
+        case Array.get 2 (Array.fromList splitCmdList) of 
           Just item ->
             String.toLower item
           Nothing ->
             ""
 
       updatedCommandRecord =
-        { newCommandRecord | function = function, view = view }
+        { newCommandRecord | function = function, view = view, itemId = itemId }
   in
     formatArguments argumentString updatedCommandRecord
 
