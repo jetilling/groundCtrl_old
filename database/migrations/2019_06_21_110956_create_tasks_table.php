@@ -13,15 +13,14 @@ class CreateTasksTable extends Migration
      */
     public function up()
     {
-        $priorities = ['low', 'medium', 'high', 'urgent'];
+        $priorities = ['general', 'low', 'moderate', 'high'];
 
         Schema::create('tasks', function (Blueprint $table) use ($priorities) {
             $table->bigIncrements('id');
             $table->unsignedInteger('workspace_id');
-            $table->string('description');
+            $table->string('name');
             $table->boolean('completed')->default(false);
             $table->enum('priority', $priorities);
-            $table->dateTimeTz('due');
             $table->timestamps();
 
             $table->foreign('workspace_id')->references('id')->on('workspaces');

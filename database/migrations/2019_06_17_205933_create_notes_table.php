@@ -17,6 +17,7 @@ class CreateNotesTable extends Migration
             $table->bigIncrements('id');
             $table->text('note');
             $table->unsignedBigInteger('workspace_id');
+            $table->string('tags');
             $table->timestamps();
 
             $table->foreign('workspace_id')->references('id')->on('workspaces');

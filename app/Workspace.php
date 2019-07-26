@@ -21,7 +21,7 @@ class Workspace extends Model
 
     public function addTab($tab)
     {
-        $this->tabs()->create($tab);
+        return $this->tabs()->create($tab)->id;
     }
 
     // NOTES
@@ -45,6 +45,6 @@ class Workspace extends Model
 
     public function addTask($task)
     {
-        $this->tasks()->create($task);
+        return $this->tasks()->create($task)->id;
     }
 }

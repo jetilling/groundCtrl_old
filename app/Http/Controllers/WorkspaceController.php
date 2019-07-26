@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use \App\Workspace;
 
 class WorkspaceController extends Controller
@@ -49,14 +50,20 @@ class WorkspaceController extends Controller
      */
     public function store(Request $request)
     {
-        $attributes = request()->validate([
+        request()->validate([
             'name' => ['required', 'min:3'],
             'description' => 'required',
-            'primary_icon_color' => 'required',
-            'secondary_icon_color' => 'required'
+            'icon_primary_color' => 'required',
+            'icon_secondary_color' => 'required'
         ]);
 
-        Workspace::create($attributes);
+        Workspace::create([
+            'name' => request('name'),
+            'description' => request('description'),
+            'icon_primary_color' => request('icon_primary_color'),
+            'icon_secondary_color' => request('icon_secondary_color'),
+            'user_id' => Auth::id()
+        ]);
 
         return redirect('/home/workspaces');
     }
@@ -67,9 +74,18 @@ class WorkspaceController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Workspace $workspace)
     {
-        //
+        // $tabs = array();
+        // foreach ($workspace->tabs as $tab) {
+        //     array_push($tabs, [
+        //         'id' => $tab->id, 
+        //         'name' => $tab->name,
+        //         'url' => $tab->url]);
+        // }
+        // $workspace->tabs = $tabs;
+        // dd($workspace->tasks);
+        return view('workspace_dash', compact('workspace'));
     }
 
     /**

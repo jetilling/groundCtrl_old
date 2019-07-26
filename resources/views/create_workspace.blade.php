@@ -6,7 +6,7 @@
     <div class="column is-half is-offset-1">
     <h4 class="title is-4" style="color: rgb(54, 54, 54)">Create a Workspace</h4>
 
-      <form method="POST" action="/workspaces">
+      <form method="POST" action="/home/workspaces">
         @csrf
 
         <div class="field">
@@ -27,11 +27,11 @@
           <label class="label">Icon Colors</label>
           <div class="field is-grouped">
             <div class="control">
-              <input class="input color-picker" type="color" name="primary_icon_color" placeholder="Primary Icon Color">
+              <input class="input color-picker" type="color" name="icon_primary_color" placeholder="Primary Icon Color">
             </div>
 
             <div class="control">
-              <input class="input color-picker" type="color" name="secondary_icon_color" placeholder="Secondary Icon Color">
+              <input class="input color-picker" type="color" name="icon_secondary_color" placeholder="Secondary Icon Color">
             </div>
           </div>
         </div>

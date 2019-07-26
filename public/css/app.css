@@ -11731,3 +11731,163 @@ label.panel-block:hover {
   width: 20vw;
 }
 
+.workspace-icon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid;
+  border-radius: 50%;
+}
+
+.set-box-heights {
+  min-height: 115px;
+  max-height: 115px;
+}
+
+.light-background {
+  background: whitesmoke;
+  color: #363636;
+  min-height: calc(100vh - 3.25rem);
+  padding: 20px;
+}
+
+.display-block {
+  display: block;
+}
+
+.no-display {
+  display: none;
+}
+
+.tab-link-container {
+  display: block;
+}
+
+.is-75vh {
+  height: 75vh;
+}
+
+.dark {
+  background: #313131;
+  color: whitesmoke;
+}
+
+.lightblue {
+  background: lightblue;
+}
+
+.white-text {
+  color: whitesmoke;
+}
+
+.cancel-form-btn {
+  font-weight: 400;
+  font-size: 16px;
+  border: none;
+  background: transparent;
+  text-decoration: underline;
+  margin-left: 10px;
+}
+
+.cancel-form-btn:hover {
+  cursor: pointer;
+}
+
+.display-flex {
+  display: flex;
+}
+
+.link {
+  font-weight: 400;
+  color: blue !important;
+}
+
+.center-items {
+  display: flex;
+  justify-content: center;
+}
+
+.center-vetically {
+  display: flex;
+  align-items: center;
+}
+
+.is-red {
+  background: #fd2c2cb3;
+}
+
+.workspace-border {
+  border-top: 10px solid;
+}
+
+.red-left-border {
+  border-left: 3px solid red;
+}
+
+.orange-left-border {
+  border-left: 3px solid orange;
+}
+
+.green-left-border {
+  border-left: 3px solid green;
+}
+
+.blue-left-border {
+  border-left: 3px solid lightblue;
+}
+
+.red-text {
+  color: red !important;
+}
+
+.orange-text {
+  color: orange !important;
+}
+
+.green-text {
+  color: green !important;
+}
+
+.blue-text {
+  color: lightblue !important;
+}
+
+.task-container {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+}
+
+.task-item {
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+.task-check-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid whitesmoke;
+  margin-right: 5px;
+  margin-left: 5px;
+  margin-left: 15px;
+  margin-right: 10px;
+}
+
+.edit-task-button {
+  background: transparent;
+  color: whitesmoke;
+}
+
+.edit-task-button:hover {
+  color: whitesmoke;
+}
+
+.strike-through-on-hover {
+  display: flex;
+  align-items: center;
+}
+
+.strike-through-on-hover:hover {
+  text-decoration: line-through;
+  cursor: pointer;
+}
+
