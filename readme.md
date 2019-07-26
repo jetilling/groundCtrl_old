@@ -19,5 +19,5 @@ _Keep tabs on all of your projects_
 5) In a second terminal run docker-compose exec app php artisan key:generate
 6) Run migrations `docker-compose exec app php artisan migrate --seed` 
 7) Compile css `docker-compose exec app npm run dev`
-8) If on an elm branch, compile elm: `elm-make /resources/elm/tabs.elm --output /public/js/tabs.js`
+8) If on an elm branch, compile elm: `elm make resources/elm/main.elm --output public/js/main.js`
 9) Navigate to `localhost:8080/register` and you should be good to go! 
