@@ -4,9 +4,9 @@ import Browser
 import Http
 import Json.Encode as Encode
 import Json.Decode exposing (Decoder, field, string, bool, int, map, map2)
-import Html exposing (Html, Attribute, button, div, text, p, label, input, h4, a, ul, li, span)
+import Html exposing (Html, Attribute, button, div, text, p, label, input, h4, a, ul, li, span, section)
 import Html.Events exposing (onClick, on, keyCode, onInput)
-import Html.Attributes exposing (class, classList, type_, placeholder, value, href, style)
+import Html.Attributes exposing (class, classList, type_, placeholder, value, href, style, autofocus)
 import Debug
 
 import Converter exposing (..)
@@ -30,6 +30,10 @@ port closeBrowserTabs : List Tab -> Cmd msg
 
 type alias Flags =
   { tabs : List Tab
+  , highPriorityTasks : List Task
+  , moderatePriorityTasks : List Task
+  , lowPriorityTasks : List Task
+  , generalPriorityTasks : List Task
   , workspaceId : Int
   , workspaceName : String
   , workspacePrimaryColor : String
@@ -47,6 +51,12 @@ type alias Model =
   , tabs : List Tab
   , newTab : Tab
   , browserTabsAreOpen : Bool
+  , highPriorityTasks : List Task
+  , moderatePriorityTasks : List Task
+  , lowPriorityTasks : List Task
+  , generalPriorityTasks : List Task
+  , newTask : Task
+  , showTaskId : Bool
   }
 
 type CurrentView
@@ -59,6 +69,14 @@ type alias Tab =
   { id : Int
   , url : String
   , name : String
+  , uiid : String
+  }
+
+type alias Task = 
+  { id : Int
+  , name : String
+  , completed : Bool
+  , priority : String
   , uiid : String
   }
 
@@ -75,6 +93,15 @@ emptyTab =
   , uiid = ""
   }
 
+emptyTask : Task
+emptyTask =
+  { id = 0 
+  , name = ""
+  , completed = False
+  , priority = ""
+  , uiid = ""
+  }
+
 init : Flags -> (Model, Cmd Msg)
 init flags =
   ( ( Model
@@ -87,6 +114,12 @@ init flags =
     False
     flags.tabs
     emptyTab
+    False
+    flags.highPriorityTasks
+    flags.moderatePriorityTasks
+    flags.lowPriorityTasks
+    flags.generalPriorityTasks
+    emptyTask
     False)
   , Cmd.none
   )
@@ -101,11 +134,11 @@ type Msg
   | UpdateCommandString String
   | KeyDown Int
   | EnterEditTabMode Tab
-  | EditTab
   | DeleteTab Tab
   | TabCreated ( Result Http.Error CreateResponse )
   | TabUpdated ( Result Http.Error Bool )
   | TabDeleted ( Result Http.Error Bool )
+  | TaskCreated ( Result Http.Error CreateResponse )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -133,9 +166,6 @@ update msg model =
           "edit tab " ++ tab.uiid ++ " [" ++ tab.name ++ ", " ++ tab.url ++ "]"
       in
         ( { model | newTab = tab, commandString = commandString }, Cmd.none )
-    
-    EditTab ->
-      ( model, updateTabCommand model model.newTab )
 
     DeleteTab tab ->
       ( { model | newTab = tab }, deleteTabCommand model tab )
@@ -176,6 +206,40 @@ update msg model =
               deleteTab model.tabs model.newTab
           in
             ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
+        Err err ->
+          ( { model | errorOccured = True }, Cmd.none)
+
+    TaskCreated result ->
+      case result of 
+        Ok task ->
+          let 
+            addTaskId currentTask taskResponse = 
+              { currentTask | id = taskResponse.newItemId }
+
+            newTask = 
+              addTaskId model.newTask task
+
+            highTaskList = 
+              if newTask.priority == "high" then List.append model.highPriorityTasks [newTask]
+              else model.highPriorityTasks
+            
+            moderateTaskList =
+              if newTask.priority == "moderate" then List.append model.moderatePriorityTasks [newTask]
+              else model.moderatePriorityTasks
+
+            lowTaskList =
+              if newTask.priority == "low" then List.append model.lowPriorityTasks [newTask]
+              else model.lowPriorityTasks
+
+            generalTaskList =
+              if newTask.priority == "general" then List.append model.generalPriorityTasks [newTask]
+              else model.generalPriorityTasks
+              
+          in
+            ( { model | highPriorityTasks = highTaskList, 
+                        moderatePriorityTasks = moderateTaskList, 
+                        lowPriorityTasks = lowTaskList, 
+                        generalPriorityTasks = generalTaskList, newTask = emptyTask }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -229,7 +293,7 @@ handleCloseCommand model =
 handleCreateCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
 handleCreateCommand model commandRecord =
   if String.contains "tab" commandRecord.view then handleCreateTab model commandRecord.arguments
-  else if String.contains "task" commandRecord.view then ( { model | currentView = Tasks, commandString = "" }, Cmd.none )
+  else if String.contains "task" commandRecord.view then handleCreateTask model commandRecord.arguments
   else if String.contains "note" commandRecord.view then ( { model | currentView = Notes, commandString = "" }, Cmd.none )
   else ( model, Cmd.none )
 
@@ -244,6 +308,49 @@ handleEditCommand model commandRecord =
 
 -- TASKS UPDATE FUNCTIONS
 
+
+handleCreateTask : Model -> List String -> ( Model, Cmd Msg )
+handleCreateTask model valuesForCreate = 
+  let
+    name = 
+      parseFirstArgument valuesForCreate
+
+    priority =
+      parseSecondArgument valuesForCreate
+  in
+    updateNewTask model priority name
+
+
+updateNewTask : Model -> String -> String -> ( Model, Cmd Msg )
+updateNewTask model priority name = 
+  let
+    updatedNewTask =
+      { emptyTask | name = name, priority = priority }
+  in
+    ( { model | newTask = updatedNewTask, commandString = "" }, createTaskCommand model updatedNewTask )
+
+
+createTaskCommand : Model -> Task -> Cmd Msg
+createTaskCommand model task =
+  Http.request
+    { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/task"
+    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (newTaskEncoder task)
+    , method = "POST"
+    , expect = Http.expectJson TaskCreated postCreateResponseDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+
+newTaskEncoder : Task -> Encode.Value
+newTaskEncoder task =
+  Encode.object
+    [ ( "name", Encode.string task.name )
+    , ( "priority", Encode.string task.priority )
+    ]
+
+
 -- NOTES UPDATE FUNCTIONS
 
 -- TABS UPDATE FUNCTIONS
@@ -253,10 +360,10 @@ handleCreateTab : Model -> List String -> ( Model, Cmd Msg )
 handleCreateTab model valuesForCreate =
   let
     name = 
-      parseNameArgument valuesForCreate
+      parseFirstArgument valuesForCreate
 
     url =
-      parseUrlArgument valuesForCreate
+      parseSecondArgument valuesForCreate
   in
     updateNewTab model url name model.newTab
 
@@ -278,30 +385,30 @@ handleEditTab model commandRecord =
             emptyTab
 
     name = 
-      parseNameArgument commandRecord.arguments
+      parseFirstArgument commandRecord.arguments
 
     url = 
-      parseUrlArgument commandRecord.arguments
+      parseSecondArgument commandRecord.arguments
 
     updatedTab =
       { id = matchingTab.id, name = name, url = url, uiid = commandRecord.itemId }
   in
     ( { model | newTab = updatedTab, commandString = "" }, updateTabCommand model updatedTab )
 
-parseNameArgument : List String -> String
-parseNameArgument argumentList =
+parseFirstArgument : List String -> String
+parseFirstArgument argumentList =
   case List.head argumentList of 
-    Just extractedName ->
-      String.trim extractedName 
+    Just extractedArg ->
+      String.trim extractedArg 
     Nothing ->
       ""
 
 
-parseUrlArgument : List String -> String
-parseUrlArgument argumentList =
+parseSecondArgument : List String -> String
+parseSecondArgument argumentList =
   case List.head (List.drop 1 argumentList) of 
-    Just extractedUrl ->
-      String.trim extractedUrl
+    Just extractedArg ->
+      String.trim extractedArg
     Nothing ->
       ""
 
@@ -444,7 +551,7 @@ renderCommandLineInput model =
   [ div [ class "column", class "is-one-quarter", class "center-vetically" ] [ p [ class "title" ] [ text model.workspaceName ] ]
   , div [ class "column" ] 
     [ div [ class "control", class "is-large" ]
-      [ input [ class "input", class "is-large", type_ "text", value model.commandString, onInput UpdateCommandString, onKeyDown KeyDown ] []
+      [ input [ class "input", class "is-large", type_ "text", value model.commandString, onInput UpdateCommandString, onKeyDown KeyDown, autofocus True ] []
       ]
     ]
   ]
@@ -456,7 +563,7 @@ renderCommandLineResponse model =
     Tabs ->
       div [ ] [ renderTabsList model ]
     Tasks ->
-      div [ class "title" ] [ text "tasks" ]
+      div [ ] [ renderTasksList model ]
     Notes ->
       div [ class "title" ] [ text "notes" ]
     Help ->
@@ -465,6 +572,76 @@ renderCommandLineResponse model =
 
 -- TASKS VIEW RENDER FUNCTIONS
 
+
+renderTasksList : Model -> Html Msg
+renderTasksList model = 
+  div [class "content"] 
+  [ div [ class "columns" ] 
+    [ div [ class "column", class "is-three-quarters" ] 
+      [ renderHighPriorityTasks model
+      , renderModeratePriorityTasks model
+      , renderLowPriorityTasks model
+      , renderGeneralTasks model
+      ]
+    , div [ class "column", class "is-one-quarter" ] 
+      [ section [ class "section" ] 
+        [ h4 [ class "title" ] [text "Completed" ]
+        ]
+      ]
+    ]
+  ]
+
+
+renderHighPriorityTasks : Model -> Html Msg
+renderHighPriorityTasks model =
+  section [ class "section" ] 
+  [ h4 [ class "title", class "red-text" ] [text "High Priority"]
+  , div [ class "red-left-border" ]
+    ( List.map renderTask model.highPriorityTasks )
+  ]
+
+
+renderModeratePriorityTasks : Model -> Html Msg
+renderModeratePriorityTasks model =
+  section [ class "section" ] 
+  [ h4 [ class "title", class "orange-text" ] [text "Moderate Priority" ]
+  , div [ class "orange-left-border" ]
+    ( List.map renderTask model.moderatePriorityTasks )
+  ]
+
+
+renderLowPriorityTasks : Model -> Html Msg
+renderLowPriorityTasks model =
+  section [ class "section" ] 
+  [ h4 [ class "title", class "green-text" ] [text "Low Priority" ]
+  , div [ class "green-left-border" ]
+    ( List.map renderTask model.lowPriorityTasks )
+  ]
+
+
+renderGeneralTasks : Model -> Html Msg
+renderGeneralTasks model =
+  section [ class "section" ] 
+  [ h4 [ class "title", class "blue-text" ] [text "General Tasks" ]
+  , div [ class "blue-left-border" ]
+    ( List.map renderTask model.generalPriorityTasks )
+  ]
+
+
+renderTask : Task -> Html Msg
+renderTask task = 
+  div [ class "column" ]
+  [ div [ class "columns" ] 
+    [ div [ class "column", class "is-full", class "task-container" ]
+      [ div [ class "strike-through-on-hover" ] 
+        [ div [ class "task-check-box" ] []
+        , div [ class "task-item"] [ text task.name ]
+        ]
+      , button [ class "button", class "is-small", class "is-outlined", class "edit-task-button", class "task-item"] [ text "Edit" ]
+      , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
+      ]
+    ]
+  ]
 
 -- NOTES VIEW RENDER FUNCTIONS
 

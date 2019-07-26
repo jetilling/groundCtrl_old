@@ -84,6 +84,7 @@ class WorkspaceController extends Controller
         //         'url' => $tab->url]);
         // }
         // $workspace->tabs = $tabs;
+        // dd($workspace->tasks);
         return view('workspace_dash', compact('workspace'));
     }
 

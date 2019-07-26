@@ -14,6 +14,12 @@
   <script src="{{ asset('js/main.js') }}"></script>
   <script>
     let tabData = []
+    let rawTaskData = []
+    let highTaskData = []
+    let moderateTaskData = []
+    let lowTaskData = []
+    let generalTaskData = []
+
     @foreach ($workspace->tabs as $tab)
       tabData.push({
         id: {{ $tab->id }},
@@ -22,10 +28,42 @@
         uiid: "{{$loop->iteration}}"
       })
     @endforeach
+
+    @foreach ($workspace->tasks as $task)
+      rawTaskData.push({
+        id: {{ $task->id }},
+        name: "{{ $task->name }}",
+        completed: {{ $task->completed ? "true" : "false" }},
+        priority: "{{ $task->priority }}",
+        uiid: "{{$loop->iteration}}"
+      })
+    @endforeach
+
+    rawTaskData.forEach(item => {
+      switch (item.priority) {
+        case "high":
+          highTaskData.push(item)
+          break;
+        case "moderate":
+          moderateTaskData.push(item)
+          break;
+        case "low":
+          lowTaskData.push(item)
+          break;
+        case "general":
+          generalTaskData.push(item)
+          break;
+      }
+    })
+    console.log(highTaskData, moderateTaskData)
     let app = Elm.Main.init({
       node: document.getElementById("elm-main"), 
       flags: { 
         tabs: tabData,
+        highPriorityTasks: highTaskData,
+        moderatePriorityTasks: moderateTaskData,
+        lowPriorityTasks: lowTaskData,
+        generalPriorityTasks: generalTaskData,
         workspaceId: {{ $workspace->id }},
         workspaceName: "{{ $workspace->name }}",
         workspacePrimaryColor: "{{ $workspace->icon_primary_color }}",

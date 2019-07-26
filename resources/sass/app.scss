@@ -112,3 +112,75 @@
 .workspace-border {
   border-top: 10px solid;
 }
+
+.red-left-border {
+  border-left: 3px solid red;
+}
+
+.orange-left-border {
+  border-left: 3px solid orange;
+}
+
+.green-left-border {
+  border-left: 3px solid green;
+}
+
+.blue-left-border {
+  border-left: 3px solid lightblue;
+}
+
+.red-text {
+ color: red !important;
+}
+
+.orange-text {
+  color: orange !important;
+}
+
+.green-text {
+  color: green !important;
+}
+
+.blue-text {
+  color: lightblue !important;
+}
+
+.task-container {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+}
+
+.task-item {
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+.task-check-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid whitesmoke;
+  margin-right: 5px;
+  margin-left: 5px;
+  margin-left: 15px;
+  margin-right: 10px;
+}
+
+.edit-task-button {
+  background: transparent;
+  color: whitesmoke;
+}
+
+.edit-task-button:hover {
+  color: whitesmoke;
+}
+
+.strike-through-on-hover {
+  display: flex;
+  align-items: center;
+}
+
+.strike-through-on-hover:hover {
+  text-decoration: line-through;
+  cursor: pointer;
+}

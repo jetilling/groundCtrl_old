@@ -45,6 +45,6 @@ class Workspace extends Model
 
     public function addTask($task)
     {
-        $this->tasks()->create($task);
+        return $this->tasks()->create($task)->id;
     }
 }

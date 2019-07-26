@@ -25,4 +25,7 @@ Route::prefix('home')->group(function () {
   Route::put('/tabs/{tab}', 'WorkspaceTabsController@update');
   Route::delete('/tabs/{tab}', 'WorkspaceTabsController@destroy');
 
+  Route::post('/workspaces/{workspace}/task', 'WorkspaceTasksController@store');
+  Route::put('/tasks/{task}', 'WorkspaceTasksController@update');
+  Route::delete('/tasks/{task}', 'WorkspaceTasksController@destroy');
 });
