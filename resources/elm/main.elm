@@ -175,7 +175,7 @@ update msg model =
         Ok tab ->
           let 
             addTabId currentTab tabResponse = 
-              { currentTab | id = tabResponse.newItemId }
+              { currentTab | id = tabResponse.newItemId, uiid = String.fromInt ((List.length model.tabs) + 1) }
 
             newTab = 
               addTabId model.newTab tab
@@ -213,8 +213,14 @@ update msg model =
       case result of 
         Ok task ->
           let 
+            taskCount = 
+                (List.length model.highPriorityTasks) 
+              + (List.length model.moderatePriorityTasks)
+              + (List.length model.lowPriorityTasks)
+              + (List.length model.generalPriorityTasks)
+
             addTaskId currentTask taskResponse = 
-              { currentTask | id = taskResponse.newItemId }
+              { currentTask | id = taskResponse.newItemId, uiid = String.fromInt (taskCount + 1) }
 
             newTask = 
               addTaskId model.newTask task
