@@ -74,7 +74,10 @@
     let tabs = []
     app.ports.openBrowserTabs.subscribe(function(data) {
       data.forEach(function(tab) {
-        tabs.push(window.open(tab.url, '_blank'))
+        var newWindow = window.open(tab.url, '_blank')
+        // needed to mitigate a security vulnerbility: https://www.google.com/search?q=target+_blank+security
+        newWindow.opener = null;
+        tabs.push(newWindow)
       })
       localStorage.setItem("{{ $workspace->name }}TabsOpen", true)
     });

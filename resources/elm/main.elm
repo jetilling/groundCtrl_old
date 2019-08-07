@@ -9,7 +9,11 @@ import Html.Events exposing (onClick, on, keyCode, onInput)
 import Html.Attributes exposing (class, classList, type_, placeholder, value, href, style, autofocus)
 import Debug
 
-import Converter exposing (..)
+import Converter
+import Utilities
+import Tabs
+import Tasks
+import HttpHelper as HH
 
 -- MAIN
 
@@ -22,18 +26,18 @@ main =
     , subscriptions = subscriptions
   }
 
-port openBrowserTabs : List Tab -> Cmd msg
+port openBrowserTabs : List Tabs.Tab -> Cmd msg
 
-port closeBrowserTabs : List Tab -> Cmd msg
+port closeBrowserTabs : List Tabs.Tab -> Cmd msg
 
 -- MODEL
 
 type alias Flags =
-  { tabs : List Tab
-  , highPriorityTasks : List Task
-  , moderatePriorityTasks : List Task
-  , lowPriorityTasks : List Task
-  , generalPriorityTasks : List Task
+  { tabs : List Tabs.Tab
+  , highPriorityTasks : List Tasks.Task
+  , moderatePriorityTasks : List Tasks.Task
+  , lowPriorityTasks : List Tasks.Task
+  , generalPriorityTasks : List Tasks.Task
   , workspaceId : Int
   , workspaceName : String
   , workspacePrimaryColor : String
@@ -48,14 +52,14 @@ type alias Model =
   , csrfToken : String
   , commandString : String
   , errorOccured : Bool
-  , tabs : List Tab
-  , newTab : Tab
+  , tabs : List Tabs.Tab
+  , newTab : Tabs.Tab
   , browserTabsAreOpen : Bool
-  , highPriorityTasks : List Task
-  , moderatePriorityTasks : List Task
-  , lowPriorityTasks : List Task
-  , generalPriorityTasks : List Task
-  , newTask : Task
+  , highPriorityTasks : List Tasks.Task
+  , moderatePriorityTasks : List Tasks.Task
+  , lowPriorityTasks : List Tasks.Task
+  , generalPriorityTasks : List Tasks.Task
+  , newTask : Tasks.Task
   , showTaskId : Bool
   }
 
@@ -65,42 +69,6 @@ type CurrentView
   | Tasks
   | Help
 
-type alias Tab =
-  { id : Int
-  , url : String
-  , name : String
-  , uiid : String
-  }
-
-type alias Task = 
-  { id : Int
-  , name : String
-  , completed : Bool
-  , priority : String
-  , uiid : String
-  }
-
-type alias CreateResponse =
-  { success : Bool
-  , newItemId : Int
-  }
-
-emptyTab : Tab
-emptyTab =
-  { id = 0 
-  , url = ""
-  , name = ""
-  , uiid = ""
-  }
-
-emptyTask : Task
-emptyTask =
-  { id = 0 
-  , name = ""
-  , completed = False
-  , priority = ""
-  , uiid = ""
-  }
 
 init : Flags -> (Model, Cmd Msg)
 init flags =
@@ -113,13 +81,13 @@ init flags =
     ""
     False
     flags.tabs
-    emptyTab
+    Tabs.emptyTab
     False
     flags.highPriorityTasks
     flags.moderatePriorityTasks
     flags.lowPriorityTasks
     flags.generalPriorityTasks
-    emptyTask
+    Tasks.emptyTask
     False)
   , Cmd.none
   )
@@ -133,12 +101,14 @@ type Msg
   | CloseBrowserTabs
   | UpdateCommandString String
   | KeyDown Int
-  | EnterEditTabMode Tab
-  | DeleteTab Tab
-  | TabCreated ( Result Http.Error CreateResponse )
+  | EnterEditTabMode Tabs.Tab
+  | EnterEditTaskMode Tasks.Task
+  | DeleteTab Tabs.Tab
+  | TabCreated ( Result Http.Error HH.CreateResponse )
   | TabUpdated ( Result Http.Error Bool )
   | TabDeleted ( Result Http.Error Bool )
-  | TaskCreated ( Result Http.Error CreateResponse )
+  | TaskCreated ( Result Http.Error HH.CreateResponse )
+  | TaskUpdated ( Result Http.Error Bool )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -167,6 +137,14 @@ update msg model =
       in
         ( { model | newTab = tab, commandString = commandString }, Cmd.none )
 
+    EnterEditTaskMode task ->
+      let
+        commandString =
+          "edit task " ++ task.uiid ++ " [" ++ task.name ++ ", " ++ task.priority ++ "]"
+      in
+        ( { model | newTask = task, commandString = commandString }, Cmd.none )
+      
+
     DeleteTab tab ->
       ( { model | newTab = tab }, deleteTabCommand model tab )
     
@@ -183,7 +161,7 @@ update msg model =
             newTabList = 
               List.append model.tabs [newTab]
           in
-            ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
+            ( { model | tabs = newTabList, newTab = Tabs.emptyTab }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -192,9 +170,9 @@ update msg model =
         Ok tab ->
           let 
             newTabList = 
-              replaceTab model.tabs model.newTab
+              Tabs.replaceTab model.tabs model.newTab
           in
-            ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
+            ( { model | tabs = newTabList, newTab = Tabs.emptyTab }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -203,9 +181,9 @@ update msg model =
         Ok tab ->
           let 
             newTabList = 
-              deleteTab model.tabs model.newTab
+              Tabs.deleteTab model.tabs model.newTab
           in
-            ( { model | tabs = newTabList, newTab = emptyTab }, Cmd.none )
+            ( { model | tabs = newTabList, newTab = Tabs.emptyTab }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -219,33 +197,40 @@ update msg model =
               + (List.length model.lowPriorityTasks)
               + (List.length model.generalPriorityTasks)
 
-            addTaskId currentTask taskResponse = 
-              { currentTask | id = taskResponse.newItemId, uiid = String.fromInt (taskCount + 1) }
-
-            newTask = 
-              addTaskId model.newTask task
-
-            highTaskList = 
-              if newTask.priority == "high" then List.append model.highPriorityTasks [newTask]
-              else model.highPriorityTasks
-            
-            moderateTaskList =
-              if newTask.priority == "moderate" then List.append model.moderatePriorityTasks [newTask]
-              else model.moderatePriorityTasks
-
-            lowTaskList =
-              if newTask.priority == "low" then List.append model.lowPriorityTasks [newTask]
-              else model.lowPriorityTasks
-
-            generalTaskList =
-              if newTask.priority == "general" then List.append model.generalPriorityTasks [newTask]
-              else model.generalPriorityTasks
+            updatedTaskLists = 
+              Tasks.appendItemToTaskLists 
+                model.newTask 
+                task 
+                taskCount 
+                model.highPriorityTasks 
+                model.moderatePriorityTasks 
+                model.lowPriorityTasks 
+                model.generalPriorityTasks
               
           in
-            ( { model | highPriorityTasks = highTaskList, 
-                        moderatePriorityTasks = moderateTaskList, 
-                        lowPriorityTasks = lowTaskList, 
-                        generalPriorityTasks = generalTaskList, newTask = emptyTask }, Cmd.none )
+            ( { model | highPriorityTasks = updatedTaskLists.highTaskList, 
+                        moderatePriorityTasks = updatedTaskLists.moderateTaskList, 
+                        lowPriorityTasks = updatedTaskLists.lowTaskList, 
+                        generalPriorityTasks = updatedTaskLists.generalTaskList, newTask = Tasks.emptyTask }, Cmd.none )
+        Err err ->
+          ( { model | errorOccured = True }, Cmd.none)
+
+    TaskUpdated result ->
+      case result of 
+        Ok tab ->
+          let 
+            updatedTaskLists = 
+              Tasks.replaceItemInTaskLists
+                model.newTask 
+                model.highPriorityTasks
+                model.moderatePriorityTasks 
+                model.lowPriorityTasks 
+                model.generalPriorityTasks
+          in
+            ( { model | highPriorityTasks = updatedTaskLists.highTaskList, 
+                        moderatePriorityTasks = updatedTaskLists.moderateTaskList, 
+                        lowPriorityTasks = updatedTaskLists.lowTaskList, 
+                        generalPriorityTasks = updatedTaskLists.generalTaskList, newTask = Tasks.emptyTask }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -307,7 +292,7 @@ handleCreateCommand model commandRecord =
 handleEditCommand : Model -> Converter.CommandRecord -> ( Model, Cmd Msg)
 handleEditCommand model commandRecord = 
   if String.contains "tab" commandRecord.view then handleEditTab model commandRecord
-  else if String.contains "task" commandRecord.view then ( { model | currentView = Tasks, commandString = "" }, Cmd.none )
+  else if String.contains "task" commandRecord.view then handleEditTask model commandRecord
   else if String.contains "note" commandRecord.view then ( { model | currentView = Notes, commandString = "" }, Cmd.none )
   else ( model, Cmd.none )
 
@@ -318,44 +303,48 @@ handleEditCommand model commandRecord =
 handleCreateTask : Model -> List String -> ( Model, Cmd Msg )
 handleCreateTask model valuesForCreate = 
   let
-    name = 
-      parseFirstArgument valuesForCreate
-
-    priority =
-      parseSecondArgument valuesForCreate
-  in
-    updateNewTask model priority name
-
-
-updateNewTask : Model -> String -> String -> ( Model, Cmd Msg )
-updateNewTask model priority name = 
-  let
     updatedNewTask =
-      { emptyTask | name = name, priority = priority }
+      Tasks.createNewTaskRecord valuesForCreate
   in
     ( { model | newTask = updatedNewTask, commandString = "" }, createTaskCommand model updatedNewTask )
 
 
-createTaskCommand : Model -> Task -> Cmd Msg
+handleEditTask : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
+handleEditTask model commandRecord = 
+  let
+    tasks = 
+      List.concat [model.highPriorityTasks, model.moderatePriorityTasks, model.lowPriorityTasks, model.generalPriorityTasks]
+
+    updatedTask =
+      Tasks.createUpdatedTaskRecord commandRecord tasks
+  in
+    ( { model | newTask = updatedTask, commandString = "" }, updateTaskCommand model updatedTask )
+
+
+createTaskCommand : Model -> Tasks.Task -> Cmd Msg
 createTaskCommand model task =
   Http.request
     { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/task"
-    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (newTaskEncoder task)
+    , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (Tasks.newTaskEncoder task)
     , method = "POST"
-    , expect = Http.expectJson TaskCreated postCreateResponseDecoder
+    , expect = Http.expectJson TaskCreated HH.postCreateResponseDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-newTaskEncoder : Task -> Encode.Value
-newTaskEncoder task =
-  Encode.object
-    [ ( "name", Encode.string task.name )
-    , ( "priority", Encode.string task.priority )
-    ]
-
+updateTaskCommand : Model -> Tasks.Task -> Cmd Msg
+updateTaskCommand model task =
+  Http.request
+    { url = "http://localhost:8080/home/tasks/" ++ String.fromInt task.id
+    , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (Tasks.newTaskEncoder task)
+    , method = "PUT"
+    , expect = Http.expectJson TaskUpdated HH.postResponseDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
 
 -- NOTES UPDATE FUNCTIONS
 
@@ -365,165 +354,58 @@ newTaskEncoder task =
 handleCreateTab : Model -> List String -> ( Model, Cmd Msg )
 handleCreateTab model valuesForCreate =
   let
-    name = 
-      parseFirstArgument valuesForCreate
-
-    url =
-      parseSecondArgument valuesForCreate
+    updatedNewTab =
+      Tabs.createNewTabRecord valuesForCreate model.newTab
   in
-    updateNewTab model url name model.newTab
+    ( { model | newTab = updatedNewTab, commandString = "" }, createTabCommand model updatedNewTab )
 
 
 handleEditTab : Model -> Converter.CommandRecord -> ( Model, Cmd Msg )
 handleEditTab model commandRecord = 
   let
-
-    matchingTab =
-      let
-        findTabIdMatch tab = 
-          if tab.uiid == commandRecord.itemId then True
-          else False
-      in 
-        case List.head (List.filter findTabIdMatch model.tabs) of
-          Just extractedTab ->
-            extractedTab
-          Nothing -> 
-            emptyTab
-
-    name = 
-      parseFirstArgument commandRecord.arguments
-
-    url = 
-      parseSecondArgument commandRecord.arguments
-
     updatedTab =
-      { id = matchingTab.id, name = name, url = url, uiid = commandRecord.itemId }
+      Tabs.createUpdatedTabRecord commandRecord model.tabs
   in
     ( { model | newTab = updatedTab, commandString = "" }, updateTabCommand model updatedTab )
 
-parseFirstArgument : List String -> String
-parseFirstArgument argumentList =
-  case List.head argumentList of 
-    Just extractedArg ->
-      String.trim extractedArg 
-    Nothing ->
-      ""
 
-
-parseSecondArgument : List String -> String
-parseSecondArgument argumentList =
-  case List.head (List.drop 1 argumentList) of 
-    Just extractedArg ->
-      String.trim extractedArg
-    Nothing ->
-      ""
-
-
-updateNewTab : Model -> String -> String -> Tab -> ( Model, Cmd Msg )
-updateNewTab model newUrl newName tab =
-  let
-    updatedNewTab =
-      { tab | name = newName, url = newUrl }
-  in
-    ( { model | newTab = updatedNewTab, commandString = "" }, createTabCommand model updatedNewTab )
-
-
-setTabName : String -> Tab -> Tab
-setTabName newName tab =
-  { tab | name = newName }
-
-
-setTabUrl : String -> Tab -> Tab
-setTabUrl newUrl tab =
-  { tab | url = newUrl }
-
-
-createTabCommand : Model -> Tab -> Cmd Msg
+createTabCommand : Model -> Tabs.Tab -> Cmd Msg
 createTabCommand model tab =
-  Http.request
+  Http.request     
     { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/tab"
-    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (newTabEncoder tab)
+    , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (Tabs.newTabEncoder tab)
     , method = "POST"
-    , expect = Http.expectJson TabCreated postCreateResponseDecoder
+    , expect = Http.expectJson TabCreated HH.postCreateResponseDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-updateTabCommand : Model -> Tab -> Cmd Msg
+updateTabCommand : Model -> Tabs.Tab -> Cmd Msg
 updateTabCommand model tab =
   Http.request
     { url = "http://localhost:8080/home/tabs/" ++ String.fromInt tab.id
-    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (newTabEncoder tab)
+    , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (Tabs.newTabEncoder tab)
     , method = "PUT"
-    , expect = Http.expectJson TabUpdated postResponseDecoder
+    , expect = Http.expectJson TabUpdated HH.postResponseDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-deleteTabCommand : Model -> Tab -> Cmd Msg
+deleteTabCommand : Model -> Tabs.Tab -> Cmd Msg
 deleteTabCommand model tab =
   Http.request
     { url = "http://localhost:8080/home/tabs/" ++ String.fromInt tab.id
-    , headers = [ createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (newTabEncoder tab)
+    , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
+    , body = Http.jsonBody (Tabs.newTabEncoder tab)
     , method = "DELETE"
-    , expect = Http.expectJson TabDeleted postResponseDecoder
+    , expect = Http.expectJson TabDeleted HH.postResponseDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
-
-
-createHeader : String -> String -> Http.Header
-createHeader key value = 
-  Http.header key value
-
-
-newTabEncoder : Tab -> Encode.Value
-newTabEncoder tab =
-  Encode.object
-    [ ( "name", Encode.string tab.name )
-    , ( "url", Encode.string tab.url )
-    ]
-
-
-postCreateResponseDecoder : Decoder CreateResponse
-postCreateResponseDecoder =
-  map2 CreateResponse
-    (field "success" bool)
-    (field "newItemId" int)
-
-
-postResponseDecoder : Decoder Bool
-postResponseDecoder =
-  (field "success" bool)
-
-
-replaceTab : List Tab -> Tab -> List Tab
-replaceTab tabs newTab =
-  let
-    replace tab =
-      if tab.id == newTab.id then
-        { tab | id = newTab.id, name = newTab.name, url = newTab.url }
-      else
-        tab
-  in
-    List.map replace tabs
-
-
-deleteTab : List Tab -> Tab -> List Tab
-deleteTab tabs newTab =
-  let
-    search tab =
-      if tab.id == newTab.id then
-        False
-      else
-        True
-  in
-    List.filter search tabs
 
 
 onKeyDown : (Int -> msg) -> Attribute msg
@@ -634,7 +516,7 @@ renderGeneralTasks model =
   ]
 
 
-renderTask : Task -> Html Msg
+renderTask : Tasks.Task -> Html Msg
 renderTask task = 
   div [ class "column" ]
   [ div [ class "columns" ] 
@@ -643,7 +525,14 @@ renderTask task =
         [ div [ class "task-check-box" ] []
         , div [ class "task-item"] [ text task.name ]
         ]
-      , button [ class "button", class "is-small", class "is-outlined", class "edit-task-button", class "task-item"] [ text "Edit" ]
+      , button 
+          [ class "button"
+          , class "is-small"
+          , class "is-outlined"
+          , class "edit-task-button"
+          , class "task-item"
+          , onClick ( EnterEditTaskMode task )
+          ] [ text "Edit" ]
       , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
       ]
     ]
@@ -663,7 +552,7 @@ renderTabsList model =
     ]
 
 
-renderTab : Tab -> Html Msg
+renderTab : Tabs.Tab -> Html Msg
 renderTab tab =
   div [ class "column", class "is-one-third"]
   [ div [class "box", class "set-box-height" ]
