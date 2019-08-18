@@ -592,7 +592,21 @@ renderCompletedTask task =
   div [ class "column" ]
   [ div [ class "columns" ] 
     [ div [ class "column", class "is-full", class "task-container" ]
-      [ div [ ] 
+      [ div 
+        [ class 
+            (case task.priority of 
+              "high" -> 
+                "red-left-border"
+              "moderate" ->
+                "orange-left-border"
+              "low" -> 
+                "green-left-border"
+              "general" ->
+                "blue-left-border"
+              _ ->
+                "blue-left-border"
+            )
+        ] 
         [ div [ class "task-item"] [ text task.name ]
         ]
       , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
