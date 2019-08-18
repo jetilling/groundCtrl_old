@@ -92,7 +92,7 @@
 
 .link {
   font-weight: 400;
-  color: blue !important;
+  color: #57A0D3 !important;
 }
 
 .center-items {
@@ -129,6 +129,10 @@
   border-left: 3px solid lightblue;
 }
 
+.black-left-border {
+  border-left: 3px solid #252527;
+}
+
 .red-text {
  color: red !important;
 }
@@ -146,8 +150,6 @@
 }
 
 .task-container {
-  display: flex;
-  align-items: center;
   font-size: 18px;
 }
 
@@ -183,4 +185,23 @@
 .strike-through-on-hover:hover {
   text-decoration: line-through;
   cursor: pointer;
+}
+
+.tab-main {
+  display: flex;
+  align-items: center;
+  border-left: 3px solid lightgray;
+}
+
+.transparent-box-with-shadow {
+  background: none;
+  box-shadow: none;
+  color: white;
+  box-shadow: 10px 9px 5px -10px black;
+}
+
+.transparent-box {
+  background: none;
+  box-shadow: none;
+  color: white;
 }

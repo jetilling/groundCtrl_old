@@ -171,7 +171,7 @@ replaceItemInTaskLists newTask highPriorityTasks moderatePriorityTasks lowPriori
 
     completedTaskList = 
       if newTask.completed then
-        List.append completedTasks [newTask]
+        newTask :: completedTasks
       else
         findAndRemoveCompletedTask completedTasks newTask
   in

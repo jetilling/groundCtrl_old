@@ -4,7 +4,7 @@ import Browser
 import Http
 import Json.Encode as Encode
 import Json.Decode exposing (Decoder, field, string, bool, int, map, map2)
-import Html exposing (Html, Attribute, button, div, text, p, label, input, h4, a, ul, li, span, section)
+import Html exposing (Html, Attribute, button, div, text, p, label, input, h4, a, ul, li, span, section, nav)
 import Html.Events exposing (onClick, on, keyCode, onInput)
 import Html.Attributes exposing (class, classList, type_, placeholder, value, href, style, autofocus)
 import Debug
@@ -511,25 +511,22 @@ renderTasksList : Model -> Html Msg
 renderTasksList model = 
   div [class "content"] 
   [ div [ class "columns" ] 
-    [ div [ class "column", class "is-one-half" ] 
-      [ renderHighPriorityTasks model
-      , renderModeratePriorityTasks model
-      , renderLowPriorityTasks model
-      , renderGeneralTasks model
-      ]
-    , div [ class "column", class "is-one-half" ] 
-      [ section [ class "section" ] 
+    [ renderHighPriorityTasks model
+    , renderModeratePriorityTasks model
+    , renderLowPriorityTasks model
+    , renderGeneralTasks model
+    , div [ class "column", class "is-one-fifth" ]  
         [ h4 [ class "title" ] [text "Completed" ]
-        , div [] ( List.map renderCompletedTask model.completedTasks )
+        , div [ class "black-left-border" ] 
+          ( List.map renderCompletedTask model.completedTasks )
         ]
       ]
     ]
-  ]
 
 
 renderHighPriorityTasks : Model -> Html Msg
 renderHighPriorityTasks model =
-  section [ class "section" ] 
+  div [ class "column", class "is-one-fifth" ] 
   [ h4 [ class "title", class "red-text" ] [text "High Priority"]
   , div [ class "red-left-border" ]
     ( List.map renderTask model.highPriorityTasks )
@@ -538,7 +535,7 @@ renderHighPriorityTasks model =
 
 renderModeratePriorityTasks : Model -> Html Msg
 renderModeratePriorityTasks model =
-  section [ class "section" ] 
+  div [ class "column", class "is-one-fifth" ] 
   [ h4 [ class "title", class "orange-text" ] [text "Moderate Priority" ]
   , div [ class "orange-left-border" ]
     ( List.map renderTask model.moderatePriorityTasks )
@@ -547,7 +544,7 @@ renderModeratePriorityTasks model =
 
 renderLowPriorityTasks : Model -> Html Msg
 renderLowPriorityTasks model =
-  section [ class "section" ] 
+  div [ class "column", class "is-one-fifth" ] 
   [ h4 [ class "title", class "green-text" ] [text "Low Priority" ]
   , div [ class "green-left-border" ]
     ( List.map renderTask model.lowPriorityTasks )
@@ -556,7 +553,7 @@ renderLowPriorityTasks model =
 
 renderGeneralTasks : Model -> Html Msg
 renderGeneralTasks model =
-  section [ class "section" ] 
+  div [ class "column", class "is-one-fifth" ] 
   [ h4 [ class "title", class "blue-text" ] [text "General Tasks" ]
   , div [ class "blue-left-border" ]
     ( List.map renderTask model.generalPriorityTasks )
@@ -565,23 +562,30 @@ renderGeneralTasks model =
 
 renderTask : Tasks.Task -> Html Msg
 renderTask task = 
-  div [ class "column" ]
-  [ div [ class "columns" ] 
-    [ div [ class "column", class "is-full", class "task-container" ]
-      [ div [ class "strike-through-on-hover" ] 
-        [ div [ class "task-item"
-              , onClick ( CompleteTask task )
-              ] [ text task.name ]
+  div [ class "box", class "transparent-box-with-shadow" ]
+    [ div [ class "media" ] 
+      [ div [ class "media-content", class "task-container" ]
+        [ div [ class "content" ] 
+          [ div [ class "strike-through-on-hover" ] 
+            [ div [ class "task-item"
+                  , onClick ( CompleteTask task )
+                  ] [ text task.name ]
+            ]
+          ]
+        , nav [ class "level" ]
+          [ div [ class "level-left" ]
+            [ button 
+              [ class "level-item"
+              , class "button"
+              , class "is-small"
+              , class "is-dark"
+              , class "edit-task-button"
+              , class "task-item"
+              , onClick ( EnterEditTaskMode task )
+              ] [ text "Edit" ]
+          , div [ class "task-item", class "tag", class "is-dark", class "level-item" ] [ text ("id: " ++ task.uiid) ]
+          ]
         ]
-      , button 
-          [ class "button"
-          , class "is-small"
-          , class "is-outlined"
-          , class "edit-task-button"
-          , class "task-item"
-          , onClick ( EnterEditTaskMode task )
-          ] [ text "Edit" ]
-      , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
       ]
     ]
   ]
@@ -589,35 +593,37 @@ renderTask task =
 
 renderCompletedTask : Tasks.Task -> Html Msg
 renderCompletedTask task = 
-  div [ class "column" ]
-  [ div [ class "columns" ] 
-    [ div [ class "column", class "is-full", class "task-container" ]
-      [ div 
-        [ class 
-            (case task.priority of 
-              "high" -> 
-                "red-left-border"
-              "moderate" ->
-                "orange-left-border"
-              "low" -> 
-                "green-left-border"
-              "general" ->
-                "blue-left-border"
-              _ ->
-                "blue-left-border"
-            )
+  div [ class "box", class "transparent-box" ]
+  [ div [ class "media"
+        , class (case task.priority of 
+                  "high" -> 
+                    "red-left-border"
+                  "moderate" ->
+                    "orange-left-border"
+                  "low" -> 
+                    "green-left-border"
+                  "general" ->
+                    "blue-left-border"
+                  _ ->
+                    "blue-left-border"
+                ) 
         ] 
-        [ div [ class "task-item"] [ text task.name ]
+    [ div [ class "media-content", class "task-container" ]
+      [ div [ class "content"] [ div [ class "task-item"] [ text task.name ]]
+      , nav [ class "level" ]
+          [ div [ class "level-left" ]
+            [ button 
+              [ class "level-item"
+              , class "button"
+              , class "is-small"
+              , class "is-dark"
+              , class "edit-task-button"
+              , class "task-item"
+                , onClick ( UndoTask task )
+                ] [ text "Undo" ]
+            , div [ class "task-item", class "tag", class "is-dark", class "level-item" ] [ text ("id: " ++ task.uiid) ]
+          ]
         ]
-      , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
-      , button 
-          [ class "button"
-          , class "is-small"
-          , class "is-outline"
-          , class "edit-task-button"
-          , class "task-item"
-          , onClick ( UndoTask task )
-          ] [ text "Undo" ]
       ]
     ]
   ]
@@ -638,34 +644,39 @@ renderTabsList model =
 
 renderTab : Tabs.Tab -> Html Msg
 renderTab tab =
-  div [ class "column", class "is-one-third"]
-  [ div [class "box", class "set-box-height" ]
-    [div [ class "columns", class "is-4" ] 
-      [ div [ class "column", class "is-one-fifth" ] [ text tab.uiid ]
-      , div [ class "column", class "is-two-fifths" ] [a [ href tab.url, class "link" ] [ text tab.name ] ]
-      , div [ class "column", class "is-two-fifths" ]
-        [ div [ class "columns" ] 
-          [ div [ class "column", class "center-items"] 
-            [ button 
-              [ class "button"
-              , class "is-link"
-              , class "is-small"
-              , class "is-outlined"
-              , onClick ( EnterEditTabMode tab )
-              ] [ text "Edit" ]
+  div [ class "column", class "is-one-fifth"]
+  [ div [ class "box", class "transparent-box-with-shadow"]
+    [ div [ class "media" ] 
+      [ div [ class "media-content" ]
+        [ div [ class "content" ] [a [ href tab.url, class "link", class "task-item" ] [ text tab.name ] ]
+        , nav [ class "level" ]
+          [ div [ class "level-left" ]
+            [ div [ class "task-item", class "tag", class "is-dark", class "level-item" ] [ text ("id: " ++ tab.uiid) ]
+            , button 
+                [ class "level-item"
+                , class "button"
+                , class "is-small"
+                , class "is-dark"
+                , class "edit-task-button"
+                , class "task-item"
+                , onClick ( EnterEditTabMode tab )
+                ] [ text "Edit" ]
+            , button 
+                [ class "level-item"
+                , class "button"
+                , class "is-small"
+                , class "is-dark"
+                , class "edit-task-button"
+                , class "task-item"
+                , onClick ( DeleteTab tab )
+                ] [ text "Delete"]
             ]
-          , div [ class "column", class "center-items" ] 
-            [ button 
-              [ class "delete"
-              , class "is-medium"
-              , class "is-red"
-              , onClick ( DeleteTab tab )
-              ] []
-            ]
+                
           ]
         ]
       ]
     ]
+    
   ]
 
 

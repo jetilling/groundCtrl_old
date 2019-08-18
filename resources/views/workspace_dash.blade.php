@@ -43,7 +43,7 @@
     rawTaskData.forEach(item => {
       console.log(item)
       if (item.completed) {
-        completedTasks.push(item)
+        completedTasks.unshift(item)
       }
       else {
         switch (item.priority) {
