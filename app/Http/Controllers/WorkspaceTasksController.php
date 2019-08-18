@@ -61,6 +61,26 @@ class WorkspaceTasksController extends Controller
     }
 
     /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\WorkspaceTasks  $WorkspaceTasks
+     * @return \Illuminate\Http\Response
+     */
+    public function updateComplete(Request $request, Task $task)
+    {
+        $attributes = request()->validate([
+            'completed' => 'required'
+        ]);
+
+        $task->update($attributes);
+
+        return response()->json([
+            'success' => true
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @param  \App\WorkspaceTasms  $WorkspaceTasks

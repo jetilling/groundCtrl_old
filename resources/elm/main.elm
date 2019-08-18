@@ -38,6 +38,7 @@ type alias Flags =
   , moderatePriorityTasks : List Tasks.Task
   , lowPriorityTasks : List Tasks.Task
   , generalPriorityTasks : List Tasks.Task
+  , completedTasks : List Tasks.Task
   , workspaceId : Int
   , workspaceName : String
   , workspacePrimaryColor : String
@@ -59,6 +60,7 @@ type alias Model =
   , moderatePriorityTasks : List Tasks.Task
   , lowPriorityTasks : List Tasks.Task
   , generalPriorityTasks : List Tasks.Task
+  , completedTasks : List Tasks.Task
   , newTask : Tasks.Task
   , showTaskId : Bool
   }
@@ -87,6 +89,7 @@ init flags =
     flags.moderatePriorityTasks
     flags.lowPriorityTasks
     flags.generalPriorityTasks
+    flags.completedTasks
     Tasks.emptyTask
     False)
   , Cmd.none
@@ -104,6 +107,8 @@ type Msg
   | EnterEditTabMode Tabs.Tab
   | EnterEditTaskMode Tasks.Task
   | DeleteTab Tabs.Tab
+  | CompleteTask Tasks.Task
+  | UndoTask Tasks.Task
   | TabCreated ( Result Http.Error HH.CreateResponse )
   | TabUpdated ( Result Http.Error Bool )
   | TabDeleted ( Result Http.Error Bool )
@@ -148,6 +153,12 @@ update msg model =
     DeleteTab tab ->
       ( { model | newTab = tab }, deleteTabCommand model tab )
     
+    CompleteTask task ->
+      handleCompleteTask model task.uiid
+
+    UndoTask task ->
+      handleUndoCompleteTask model task.uiid
+
     TabCreated result ->
       case result of 
         Ok tab ->
@@ -206,12 +217,13 @@ update msg model =
                 model.moderatePriorityTasks 
                 model.lowPriorityTasks 
                 model.generalPriorityTasks
+                model.completedTasks
               
           in
-            ( { model | highPriorityTasks = updatedTaskLists.highTaskList, 
-                        moderatePriorityTasks = updatedTaskLists.moderateTaskList, 
-                        lowPriorityTasks = updatedTaskLists.lowTaskList, 
-                        generalPriorityTasks = updatedTaskLists.generalTaskList, newTask = Tasks.emptyTask }, Cmd.none )
+            ( { model | highPriorityTasks = updatedTaskLists.highTaskList
+                      ,  moderatePriorityTasks = updatedTaskLists.moderateTaskList
+                      ,  lowPriorityTasks = updatedTaskLists.lowTaskList
+                      ,  generalPriorityTasks = updatedTaskLists.generalTaskList, newTask = Tasks.emptyTask }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -226,11 +238,14 @@ update msg model =
                 model.moderatePriorityTasks 
                 model.lowPriorityTasks 
                 model.generalPriorityTasks
+                model.completedTasks
           in
-            ( { model | highPriorityTasks = updatedTaskLists.highTaskList, 
-                        moderatePriorityTasks = updatedTaskLists.moderateTaskList, 
-                        lowPriorityTasks = updatedTaskLists.lowTaskList, 
-                        generalPriorityTasks = updatedTaskLists.generalTaskList, newTask = Tasks.emptyTask }, Cmd.none )
+            ( { model | highPriorityTasks = updatedTaskLists.highTaskList
+                      , moderatePriorityTasks = updatedTaskLists.moderateTaskList 
+                      , lowPriorityTasks = updatedTaskLists.lowTaskList
+                      , generalPriorityTasks = updatedTaskLists.generalTaskList
+                      , completedTasks = updatedTaskLists.completedTaskList
+                      , newTask = Tasks.emptyTask }, Cmd.none )
         Err err ->
           ( { model | errorOccured = True }, Cmd.none)
 
@@ -251,11 +266,10 @@ handleCommand model =
     else if commandRecord.function == "create" then handleCreateCommand model commandRecord
     else if commandRecord.function == "edit" then handleEditCommand model commandRecord
 
-    -- else if String.startsWith "edit" lowerCaseCmd then
-
     -- else if String.startsWith "delete" lowerCaseCmd then
 
-    -- else if String.startsWith "complete" lowerCaseCmd then
+    else if commandRecord.function == "complete" then handleCompleteCommand model commandRecord True
+    else if commandRecord.function == "undo" then handleCompleteCommand model commandRecord False
 
     else
       ( model, Cmd.none )
@@ -297,6 +311,13 @@ handleEditCommand model commandRecord =
   else ( model, Cmd.none )
 
 
+handleCompleteCommand : Model -> Converter.CommandRecord -> Bool -> ( Model, Cmd Msg )
+handleCompleteCommand model commandRecord completeTaskToggle = 
+  if String.contains "task" commandRecord.view then 
+    if completeTaskToggle then handleCompleteTask model commandRecord.itemId
+    else handleUndoCompleteTask model commandRecord.itemId
+  else ( model, Cmd.none )
+
 -- TASKS UPDATE FUNCTIONS
 
 
@@ -318,7 +339,32 @@ handleEditTask model commandRecord =
     updatedTask =
       Tasks.createUpdatedTaskRecord commandRecord tasks
   in
-    ( { model | newTask = updatedTask, commandString = "" }, updateTaskCommand model updatedTask )
+    ( { model | newTask = updatedTask, commandString = "" }
+    , updateTaskCommand model updatedTask ("http://localhost:8080/home/tasks/" ++ String.fromInt updatedTask.id) )
+
+
+handleCompleteTask : Model -> String -> ( Model, Cmd Msg )
+handleCompleteTask model itemId = 
+  let 
+    tasks = 
+      List.concat [model.highPriorityTasks, model.moderatePriorityTasks, model.lowPriorityTasks, model.generalPriorityTasks]
+
+    updatedTask = 
+      Tasks.createCompletedTask itemId tasks
+  in 
+    ( { model | newTask = updatedTask, commandString = "" }
+    , updateTaskCommand model updatedTask ("http://localhost:8080/home/tasks/" ++ String.fromInt updatedTask.id ++ "/update-complete") )
+
+
+handleUndoCompleteTask : Model -> String -> ( Model, Cmd Msg )
+handleUndoCompleteTask model itemId =
+  let
+    updatedTask = 
+      Tasks.undoCompletedTask itemId model.completedTasks
+  in 
+    ( { model | newTask = updatedTask, commandString = "" }
+    , updateTaskCommand model updatedTask ("http://localhost:8080/home/tasks/" ++ String.fromInt updatedTask.id ++ "/update-complete") )
+
 
 
 createTaskCommand : Model -> Tasks.Task -> Cmd Msg
@@ -326,7 +372,7 @@ createTaskCommand model task =
   Http.request
     { url = "http://localhost:8080/home/workspaces/" ++ String.fromInt model.workspaceId ++ "/task"
     , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (Tasks.newTaskEncoder task)
+    , body = Http.jsonBody (Tasks.taskEncoder task)
     , method = "POST"
     , expect = Http.expectJson TaskCreated HH.postCreateResponseDecoder
     , timeout = Nothing
@@ -334,12 +380,12 @@ createTaskCommand model task =
     }
 
 
-updateTaskCommand : Model -> Tasks.Task -> Cmd Msg
-updateTaskCommand model task =
+updateTaskCommand : Model -> Tasks.Task -> String -> Cmd Msg
+updateTaskCommand model task url =
   Http.request
-    { url = "http://localhost:8080/home/tasks/" ++ String.fromInt task.id
+    { url = url
     , headers = [ HH.createHeader "X-CSRF-TOKEN" model.csrfToken ]
-    , body = Http.jsonBody (Tasks.newTaskEncoder task)
+    , body = Http.jsonBody (Tasks.taskEncoder task)
     , method = "PUT"
     , expect = Http.expectJson TaskUpdated HH.postResponseDecoder
     , timeout = Nothing
@@ -465,15 +511,16 @@ renderTasksList : Model -> Html Msg
 renderTasksList model = 
   div [class "content"] 
   [ div [ class "columns" ] 
-    [ div [ class "column", class "is-three-quarters" ] 
+    [ div [ class "column", class "is-one-half" ] 
       [ renderHighPriorityTasks model
       , renderModeratePriorityTasks model
       , renderLowPriorityTasks model
       , renderGeneralTasks model
       ]
-    , div [ class "column", class "is-one-quarter" ] 
+    , div [ class "column", class "is-one-half" ] 
       [ section [ class "section" ] 
         [ h4 [ class "title" ] [text "Completed" ]
+        , div [] ( List.map renderCompletedTask model.completedTasks )
         ]
       ]
     ]
@@ -522,8 +569,9 @@ renderTask task =
   [ div [ class "columns" ] 
     [ div [ class "column", class "is-full", class "task-container" ]
       [ div [ class "strike-through-on-hover" ] 
-        [ div [ class "task-check-box" ] []
-        , div [ class "task-item"] [ text task.name ]
+        [ div [ class "task-item"
+              , onClick ( CompleteTask task )
+              ] [ text task.name ]
         ]
       , button 
           [ class "button"
@@ -534,6 +582,28 @@ renderTask task =
           , onClick ( EnterEditTaskMode task )
           ] [ text "Edit" ]
       , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
+      ]
+    ]
+  ]
+
+
+renderCompletedTask : Tasks.Task -> Html Msg
+renderCompletedTask task = 
+  div [ class "column" ]
+  [ div [ class "columns" ] 
+    [ div [ class "column", class "is-full", class "task-container" ]
+      [ div [ ] 
+        [ div [ class "task-item"] [ text task.name ]
+        ]
+      , div [ class "task-item", class "tag" ] [ text ("id: " ++ task.uiid) ]
+      , button 
+          [ class "button"
+          , class "is-small"
+          , class "is-outline"
+          , class "edit-task-button"
+          , class "task-item"
+          , onClick ( UndoTask task )
+          ] [ text "Undo" ]
       ]
     ]
   ]

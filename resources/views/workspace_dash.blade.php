@@ -19,6 +19,7 @@
     let moderateTaskData = []
     let lowTaskData = []
     let generalTaskData = []
+    let completedTasks = []
 
     @foreach ($workspace->tabs as $tab)
       tabData.push({
@@ -40,22 +41,28 @@
     @endforeach
 
     rawTaskData.forEach(item => {
-      switch (item.priority) {
-        case "high":
-          highTaskData.push(item)
-          break;
-        case "moderate":
-          moderateTaskData.push(item)
-          break;
-        case "low":
-          lowTaskData.push(item)
-          break;
-        case "general":
-          generalTaskData.push(item)
-          break;
+      console.log(item)
+      if (item.completed) {
+        completedTasks.push(item)
+      }
+      else {
+        switch (item.priority) {
+          case "high":
+            highTaskData.push(item)
+            break;
+          case "moderate":
+            moderateTaskData.push(item)
+            break;
+          case "low":
+            lowTaskData.push(item)
+            break;
+          case "general":
+            generalTaskData.push(item)
+            break;
+        }
       }
     })
-    console.log(highTaskData, moderateTaskData)
+
     let app = Elm.Main.init({
       node: document.getElementById("elm-main"), 
       flags: { 
@@ -64,6 +71,7 @@
         moderatePriorityTasks: moderateTaskData,
         lowPriorityTasks: lowTaskData,
         generalPriorityTasks: generalTaskData,
+        completedTasks: completedTasks,
         workspaceId: {{ $workspace->id }},
         workspaceName: "{{ $workspace->name }}",
         workspacePrimaryColor: "{{ $workspace->icon_primary_color }}",

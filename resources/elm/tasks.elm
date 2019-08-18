@@ -1,8 +1,10 @@
 module Tasks exposing ( Task
                       , emptyTask
-                      , newTaskEncoder
+                      , taskEncoder
                       , createNewTaskRecord
                       , createUpdatedTaskRecord
+                      , createCompletedTask
+                      , undoCompletedTask
                       , appendItemToTaskLists
                       , replaceItemInTaskLists
                       )
@@ -29,6 +31,7 @@ type alias UpdateTaskListResponse =
   , moderateTaskList : List Task
   , lowTaskList : List Task
   , generalTaskList : List Task
+  , completedTaskList : List Task
   }
 
 emptyTask : Task
@@ -40,11 +43,12 @@ emptyTask =
   , uiid = ""
   }
 
-newTaskEncoder : Task -> Encode.Value
-newTaskEncoder task =
+taskEncoder : Task -> Encode.Value
+taskEncoder task =
   Encode.object
     [ ( "name", Encode.string task.name )
     , ( "priority", Encode.string task.priority )
+    , ( "completed", Encode.bool task.completed )
     ]
 
 
@@ -64,16 +68,7 @@ createUpdatedTaskRecord : Converter.CommandRecord -> List Task -> Task
 createUpdatedTaskRecord commandRecord tasks = 
   let
     matchingTask =
-      let
-        findTaskIdMatch task = 
-          if task.uiid == commandRecord.itemId then True
-          else False
-      in 
-        case List.head (List.filter findTaskIdMatch tasks) of
-          Just extractedTask ->
-            extractedTask
-          Nothing -> 
-            emptyTask
+      findMatchingTask commandRecord.itemId tasks
 
     name = 
       Utilities.parseFirstArgument commandRecord.arguments
@@ -87,8 +82,33 @@ createUpdatedTaskRecord commandRecord tasks =
     updatedTask
 
 
-appendItemToTaskLists : Task -> HH.CreateResponse -> Int -> List Task -> List Task -> List Task -> List Task -> UpdateTaskListResponse
-appendItemToTaskLists modelNewTask taskResponse taskCount highPriorityTasks moderatePriorityTasks lowPriorityTasks generalPriorityTasks = 
+createCompletedTask : String -> List Task -> Task 
+createCompletedTask itemId tasks = 
+  let
+    matchingTask =
+      findMatchingTask itemId tasks
+
+    updatedTask = 
+      { matchingTask | completed = True }
+  in
+    updatedTask
+
+
+undoCompletedTask : String -> List Task -> Task
+undoCompletedTask itemId tasks =
+  let 
+    matchingTask = 
+      findMatchingTask itemId tasks 
+
+    updatedTask =
+      { matchingTask | completed = False }
+  in 
+    updatedTask
+
+
+
+appendItemToTaskLists : Task -> HH.CreateResponse -> Int -> List Task -> List Task -> List Task -> List Task -> List Task -> UpdateTaskListResponse
+appendItemToTaskLists modelNewTask taskResponse taskCount highPriorityTasks moderatePriorityTasks lowPriorityTasks generalPriorityTasks completedTasks = 
   let
     newTask = 
       addTaskId modelNewTask taskResponse taskCount
@@ -113,11 +133,12 @@ appendItemToTaskLists modelNewTask taskResponse taskCount highPriorityTasks mode
     , moderateTaskList = moderateTaskList
     , lowTaskList = lowTaskList
     , generalTaskList = generalTaskList 
+    , completedTaskList = completedTasks
     }
 
 
-replaceItemInTaskLists : Task -> List Task -> List Task -> List Task -> List Task -> UpdateTaskListResponse
-replaceItemInTaskLists newTask highPriorityTasks moderatePriorityTasks lowPriorityTasks generalPriorityTasks = 
+replaceItemInTaskLists : Task -> List Task -> List Task -> List Task -> List Task -> List Task -> UpdateTaskListResponse
+replaceItemInTaskLists newTask highPriorityTasks moderatePriorityTasks lowPriorityTasks generalPriorityTasks completedTasks = 
   let
 
     tasks = 
@@ -147,17 +168,29 @@ replaceItemInTaskLists newTask highPriorityTasks moderatePriorityTasks lowPriori
 
     generalTaskList =
       alterPriorityInTaskList priorityChange originalTask newTask "general" generalPriorityTasks
+
+    completedTaskList = 
+      if newTask.completed then
+        List.append completedTasks [newTask]
+      else
+        findAndRemoveCompletedTask completedTasks newTask
   in
     { highTaskList = highTaskList
     , moderateTaskList = moderateTaskList
     , lowTaskList = lowTaskList
     , generalTaskList = generalTaskList 
+    , completedTaskList = completedTaskList
     }
 
 
 alterPriorityInTaskList : Bool -> Task -> Task -> String -> List Task -> List Task 
 alterPriorityInTaskList priorityChange originalTask newTask priority taskList =
-  if priorityChange then 
+  if newTask.completed then
+    if originalTask.priority == priority then
+      deleteTaskFromList taskList originalTask
+    else 
+      taskList
+  else if priorityChange then 
     if originalTask.priority == priority then
       deleteTaskFromList taskList originalTask
     else if newTask.priority == priority then
@@ -207,3 +240,36 @@ deleteTaskFromList tasks taskToDelete =
         True 
   in 
     List.filter delete tasks
+
+
+findMatchingTask : String -> List Task -> Task
+findMatchingTask itemId tasks =
+  let
+    findTaskIdMatch task = 
+      if task.uiid == itemId then True
+      else False
+  in 
+    case List.head (List.filter findTaskIdMatch tasks) of
+      Just extractedTask ->
+        extractedTask
+      Nothing -> 
+        emptyTask
+
+
+findAndRemoveCompletedTask : List Task -> Task -> List Task
+findAndRemoveCompletedTask completedTasks newTask =
+  let 
+    taskInCompleted = 
+      case List.head (findTask completedTasks newTask) of 
+        Just item ->
+          True
+        Nothing ->
+          False
+    
+    updatedCompletedTasks = 
+      if taskInCompleted then
+        deleteTaskFromList completedTasks newTask
+      else 
+        completedTasks
+  in 
+    updatedCompletedTasks
