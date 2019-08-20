@@ -102,6 +102,7 @@ init flags =
 type Msg
   = OpenBrowserTabs
   | CloseBrowserTabs
+  | OpenBrowserTab Tabs.Tab
   | UpdateCommandString String
   | KeyDown Int
   | EnterEditTabMode Tabs.Tab
@@ -125,6 +126,9 @@ update msg model =
 
     CloseBrowserTabs ->
       ( { model | browserTabsAreOpen = False }, closeBrowserTabs model.tabs )
+
+    OpenBrowserTab tab ->
+      ( { model | browserTabsAreOpen = True }, openBrowserTabs [tab] )
 
     UpdateCommandString commandString ->
       ( { model | commandString = commandString }, Cmd.none)
@@ -648,11 +652,20 @@ renderTab tab =
   [ div [ class "box", class "transparent-box-with-shadow"]
     [ div [ class "media" ] 
       [ div [ class "media-content" ]
-        [ div [ class "content" ] [a [ href tab.url, class "link", class "task-item" ] [ text tab.name ] ]
+        [ div [ class "content" ] 
+          [ a [ href tab.url, class "link", class "task-item" ] [ text tab.name ]
+          , button 
+                [ class "button"
+                , class "is-small"
+                , class "is-dark"
+                , class "edit-task-button"
+                , class "task-item"
+                , onClick ( OpenBrowserTab tab )
+                ] [ text "Open"] 
+          ]
         , nav [ class "level" ]
           [ div [ class "level-left" ]
-            [ div [ class "task-item", class "tag", class "is-dark", class "level-item" ] [ text ("id: " ++ tab.uiid) ]
-            , button 
+            [ button 
                 [ class "level-item"
                 , class "button"
                 , class "is-small"
@@ -661,6 +674,7 @@ renderTab tab =
                 , class "task-item"
                 , onClick ( EnterEditTabMode tab )
                 ] [ text "Edit" ]
+            , div [ class "task-item", class "tag", class "is-dark", class "level-item" ] [ text ("id: " ++ tab.uiid) ]
             , button 
                 [ class "level-item"
                 , class "button"
