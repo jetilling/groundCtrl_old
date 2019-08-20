@@ -9,7 +9,7 @@ services:
       # for dev only
       # allows for file changes to be detected
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: 1
-    image: groundCtrl_app_prod
+    image: groundctrl_app_prod
     working_dir: /var/www
     volumes:
       - .:/var/www
@@ -18,7 +18,7 @@ services:
     build:
       context: ./
       dockerfile: web-prod.dockerfile
-    image: groundCtrl_web_prod
+    image: groundctrl_web_prod
     working_dir: /var/www
     volumes:
       - .:/var/www
@@ -29,15 +29,15 @@ services:
     build:
       context: ./
       dockerfile: postgres-prod.dockerfile
-    image: groundCtrl_db_prod
+    image: groundctrl_db_prod
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: groundCtrl
+      POSTGRES_DB: groundctrl
     volumes:
-      - groundCtrl_db_prod:/var/lib/postgresql/data
+      - groundctrl_db_prod:/var/lib/postgresql/data
     ports:
       - 5432:5432
 
 volumes:
-  groundCtrl_db_prod:
+  groundctrl_db_prod:
