@@ -61,6 +61,7 @@ class WorkspaceController extends Controller
             'name' => request('name'),
             'description' => request('description'),
             'hourly_rate' => request('hourly_rate'),
+            'is_billable' => request('is_billable'),
             'icon_primary_color' => request('icon_primary_color'),
             'icon_secondary_color' => request('icon_secondary_color'),
             'user_id' => Auth::id()
@@ -99,11 +100,17 @@ class WorkspaceController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, Workspace $workspace)
-    {
+    {   
+        if(!$request->has('is_billable'))
+        {
+            $request->merge(['is_billable' => 0]);
+        }
+
         $attributes = request()->validate([
             'name' => ['required', 'min:3'],
             'description' => 'required',
             'hourly_rate' => 'required',
+            'is_billable' => 'boolean',
             'icon_primary_color' => 'required',
             'icon_secondary_color' => 'required'
         ]);

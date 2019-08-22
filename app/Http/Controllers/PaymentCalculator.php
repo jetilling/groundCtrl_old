@@ -24,6 +24,8 @@ class PaymentCalculator extends Controller
     public function index()
     {
 
+        $workspaces = Workspace::all();
+        
         return view('payment_calculator');
     }
 }

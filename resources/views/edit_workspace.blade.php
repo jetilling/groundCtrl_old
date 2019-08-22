@@ -38,7 +38,20 @@
               name="hourly_rate" 
               style="width: 20%"
               value="{{ $workspace->hourly_rate }}">
+              
           </div>
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <label class="checkbox"> 
+              <input 
+                type="checkbox"
+                name="is_billable"
+                value="{{ $workspace->is_billable }}"
+                {{ $workspace->is_billable ? 'checked' : ''}} >
+              Workspace is billable
+            </label>
         </div>
 
         <div class="field">

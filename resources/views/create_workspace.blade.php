@@ -37,6 +37,13 @@
               name="hourly_rate" 
               style="width: 20%"
               value="{{ old('hourly_rate') }}">
+            <label class="checkbox">
+              <input 
+                type="checkbox"
+                name="is_billable" 
+                value="{{ old('is_billable') }}">
+              Workspace is billable
+            </label>
           </div>
         </div>
 

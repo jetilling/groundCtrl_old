@@ -15,6 +15,7 @@ class AddHourlyRateToWorkspacesTable extends Migration
     {
         Schema::table('workspaces', function (Blueprint $table) {
             $table->decimal('hourly_rate', 8, 2)->default(0);
+            $table->boolean('is_billable')->default(true);
         });
     }
 
@@ -27,6 +28,7 @@ class AddHourlyRateToWorkspacesTable extends Migration
     {
         Schema::table('workspaces', function (Blueprint $table) {
             $table->dropColumn('hourly_rate');
+            $table->dropColumn('is_billable');
         });
     }
 }
