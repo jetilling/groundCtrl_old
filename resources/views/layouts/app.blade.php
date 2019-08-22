@@ -29,6 +29,9 @@
                 <a class="navbar-item" href="{{ route('workspaces.index')}}">
                     Workspaces
                 </a>
+                <a class="navbar-item" href="{{ route('payment_calculator')}}">
+                    Payment Calculator
+                </a>
             </div>
 
             <div class="navbar-end">
