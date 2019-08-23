@@ -59,7 +59,11 @@ class WorkspaceController extends Controller
 
         if(!$request->has('is_billable'))
         {
-            $request->merge(['is_billable' => 0]);
+            $request->merge(['is_billable' => false]);
+        } 
+        else if ($request->has('is_billable'))
+        {
+            $request->merge(['is_billable' => true]);
         }
 
         Workspace::create([
@@ -108,7 +112,11 @@ class WorkspaceController extends Controller
     {   
         if(!$request->has('is_billable'))
         {
-            $request->merge(['is_billable' => 0]);
+            $request->merge(['is_billable' => false]);
+        } 
+        else if ($request->has('is_billable'))
+        {
+            $request->merge(['is_billable' => true]);
         }
 
         $attributes = request()->validate([
