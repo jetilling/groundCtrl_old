@@ -1,0 +1,11 @@
+.color-white {
+  color: white !important;
+}
+
+.height-80vh {
+  height: 80vh;
+}
+
+.job-list {
+  overflow-y: scroll;
+}

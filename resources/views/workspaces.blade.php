@@ -23,7 +23,7 @@
                             <div class="media-content">
                                 <div class="content">
                                     <p>
-                                        <strong><a href="/home/workspaces/{{$workspace->id}}">{{ $workspace->name }}</a></strong> <small><a href="/home/workspace/{{ $workspace->id }}/edit">Edit</a></small>
+                                        <strong><a href="/home/workspaces/{{$workspace->id}}">{{ $workspace->name }}</a></strong> <small><a href="/home/workspaces/{{ $workspace->id }}/edit">Edit</a></small>
                                         <br>
                                         {{ $workspace->description }}
                                     </p>

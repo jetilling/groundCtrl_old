@@ -29,4 +29,6 @@ Route::prefix('home')->group(function () {
   Route::put('/tasks/{task}', 'WorkspaceTasksController@update');
   Route::put('/tasks/{task}/update-complete', 'WorkspaceTasksController@updateComplete');
   Route::delete('/tasks/{task}', 'WorkspaceTasksController@destroy');
+
+  Route::get('payment_calculator', 'PaymentCalculator@index')->name('payment_calculator');
 });
