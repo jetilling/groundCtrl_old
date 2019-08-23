@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use \App\Workspace;
 
 class PaymentCalculator extends Controller
 {
@@ -24,8 +26,8 @@ class PaymentCalculator extends Controller
     public function index()
     {
 
-        $workspaces = Workspace::all();
-        
-        return view('payment_calculator');
+        $workspaces = Workspace::all()->where('is_billable', true);
+
+        return view('payment_calculator', compact('workspaces'));
     }
 }
