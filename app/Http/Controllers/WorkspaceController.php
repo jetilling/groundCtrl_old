@@ -57,6 +57,11 @@ class WorkspaceController extends Controller
             'icon_secondary_color' => 'required'
         ]);
 
+        if(!$request->has('is_billable'))
+        {
+            $request->merge(['is_billable' => 0]);
+        }
+
         Workspace::create([
             'name' => request('name'),
             'description' => request('description'),
